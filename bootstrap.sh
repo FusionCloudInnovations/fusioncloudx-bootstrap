@@ -11,3 +11,6 @@ source modules/logging.sh
 source modules/state.sh
 
 echo "[BOOTSTRAP] Modules loaded, beginning bootstrap sequence..."
+
+source modules/notify.sh
+send_notification "Bootstrapping complete"
