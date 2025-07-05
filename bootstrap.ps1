@@ -94,3 +94,30 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
     Log-Info "Winget is already installed."
 }
 
+# ─────────────────────────────────────────────────────────────
+# Install essential tools
+# ─────────────────────────────────────────────────────────────
+$tools = @(
+    @{ Name = "Git"; Id = "Git.Git"; },
+    @{ Name = "Microsoft.WindowsTerminal"; Id = "Microsoft.WindowsTerminal"; },
+    @{ Name = "Microsoft.PowerShell7"; Id = "Microsoft.PowerShell.7"; },
+    @{ Name = "Canonical.Ubuntu"; Id = "Canonical.Ubuntu"; },
+    @{ Name = "7-Zip"; Id = "7zip.7zip"; }
+)
+
+foreach ($tool in $tools) {
+    Log-Info "Installing $($tool.Name)..."
+    try {
+        winget install --id $tool.Id -e --silent --accept-source-agreements --accept-package-agreements
+        if ($LASTEXITCODE -ne 0) {
+            Log-Error "Failed to install $($tool.Name). Winget returned exit code $LASTEXITCODE."
+            continue
+        }
+        Log-Success "$($tool.Name) installed successfully."
+    } catch {
+        Log-Error "Failed to install $($tool.Name): $_"
+    }
+}
+
+Log-Success "All essential tools installed successfully."
+
