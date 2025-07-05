@@ -14,7 +14,6 @@ source modules/state.sh
 source modules/notify.sh
 
 echo "[BOOTSTRAP] Modules loaded, beginning bootstrap sequence..."
-
 PHASES=(
     "00-precheck"
     "01-wsl-init"
@@ -24,7 +23,19 @@ PHASES=(
     "05-configure-hosts"
 )
 
+# Parse PHASE_INCLUDE if set (from .env, config/variables.env, or environment)
+if [[ -n "${PHASE_INCLUDE:-}" ]]; then
+    IFS=',' read -ra INCLUDED <<< "$PHASE_INCLUDE"
+fi
+
 for phase in "${PHASES[@]}"; do
+    # If PHASE_INCLUDE is set, skip phases not in the list
+    if [[ -n "${PHASE_INCLUDE:-}" ]]; then
+        if [[ ! " ${INCLUDED[@]} " =~ " $phase " ]]; then
+            echo "[BOOTSTRAP] Phase $phase not in inclusion list, skipping."
+            continue
+        fi
+    fi
     PHASE_PATH="phases/$phase/run.sh"
     echo "[BOOTSTRAP] Executing phase: $phase"
 
