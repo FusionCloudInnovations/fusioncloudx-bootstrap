@@ -1,4 +1,4 @@
-#!/usr/bin/
+#!/usr/bin/env bash
 
 # Setup runtime tracking
 mkdir -p state
