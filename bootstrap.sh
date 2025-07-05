@@ -26,6 +26,10 @@ PHASES=(
 # Parse PHASE_INCLUDE if set (from .env, config/variables.env, or environment)
 if [[ -n "${PHASE_INCLUDE:-}" ]]; then
     IFS=',' read -ra INCLUDED <<< "$PHASE_INCLUDE"
+    # Trim whitespace from each included phase
+    for i in "${!INCLUDED[@]}"; do
+        INCLUDED[$i]=$(echo "${INCLUDED[$i]}" | xargs)
+    done
 fi
 
 for phase in "${PHASES[@]}"; do
