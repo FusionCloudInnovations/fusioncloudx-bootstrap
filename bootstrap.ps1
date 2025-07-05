@@ -135,3 +135,32 @@ foreach ($key in $gitConfig.Keys) {
     git config --global $key $gitConfig[$key]
 }
 
+# ─────────────────────────────────────────────────────────────
+# Install WSL and Ubuntu
+# ─────────────────────────────────────────────────────────────
+if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
+    Log-Info "WSL not found. Installing WSL..."
+    wsl --install --no-distribution --no-launch
+    wsl --set-default-version 2
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "Failed to install WSL. Exit code: $LASTEXITCODE"
+    } else {
+        Log-Success "WSL installed successfully."
+    }
+} else {
+    Log-Info "WSL is already installed."
+}
+
+# Set Ubuntu as the default WSL distribution
+$ubuntuDistro = "Ubuntu"
+if (wsl -l -q | Select-String -Pattern $ubuntuDistro) {
+    Log-Info "Setting $ubuntuDistro as the default WSL distribution..."
+    wsl --set-default $ubuntuDistro
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "Failed to set $ubuntuDistro as default WSL distribution. Exit code: $LASTEXITCODE"
+    } else {
+        Log-Success "$ubuntuDistro set as the default WSL distribution."
+    }
+} else {
+    Log-Warn "$ubuntuDistro not found in WSL distributions."
+}
