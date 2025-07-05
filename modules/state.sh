@@ -4,10 +4,10 @@ set -euo pipefail
 # Load logging if not already sourced
 source modules/logging.sh
 
-export RAN_FILE="state/ran_phases.txt"
-mkdir -p "$(dirname "$RAN_FILE")"
-touch "$RAN_FILE"
-log_info "[STATE] Initialized runtime state at $RAN_FILE"
+export STATE_FILE="state/ran_phases.txt"
+mkdir -p "$(dirname "$STATE_FILE")"
+touch "$STATE_FILE"
+log_info "[STATE] Initialized runtime state at $STATE_FILE"
 
 mark_phase_as_run() {
     local phase_name="$1"
@@ -17,7 +17,7 @@ mark_phase_as_run() {
         return 1
     fi
 
-    echo "$phase_name" >> "$RAN_FILE"
+    echo "$phase_name" >> "$STATE_FILE"
     log_success "[STATE] Marked phase '$phase_name' as run"
 }
 
@@ -41,6 +41,16 @@ on_error() {
     log_error "[ERROR] An error occurred on line $LINENO. Exit code: $exit_code"
     exit $exit_code
 }
+
+finalize_bootstrap_status() {
+    if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
+        log_success "[NOTIFY] ✅ FusionCloudX Bootstrapping complete"
+        send_notification "✅ FusionCloudX Bootstrapping complete"
+    else
+        log_error "[NOTIFY] ❌ FusionCloudX Bootstrapping did not complete successfully."
+    fi
+}
+
 
 trap on_exit EXIT
 trap on_sigint INT

@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+: "${SILENT:=0}"   # default to not silent
+: "${DEBUG:=0}"    # default to not verbose
+
+
 # Initialize logs
 mkdir -p logs
 LOG_FILE="logs/bootstrap-$(date +%Y%m%d_%H%M%S).log"
@@ -61,9 +65,3 @@ log_phase() {
     *)        log_error   "[BOOTSTRAP] Phase $phase: status = $status";
   esac
 }
-
-# Print startup banner
-log_bootstrap "╭───────────────────────────────────────────────╮"
-log_bootstrap "│  🧱 FusionCloudX Bootstrap: Getting Started... │"
-log_bootstrap "╰───────────────────────────────────────────────╯"
-printf "\n"

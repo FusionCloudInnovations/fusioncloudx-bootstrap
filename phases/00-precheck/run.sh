@@ -1,3 +1,8 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
-log_bootstrap "${GREEN}[PRECHECK] Running pre-checks for FusionCloudX bootstrap..."
+# Source shared logging
+source "$(dirname "$0")/../../modules/logging.sh"
+
+
+log_phase "[PRECHECK] Running pre-checks for FusionCloudX bootstrap..."
