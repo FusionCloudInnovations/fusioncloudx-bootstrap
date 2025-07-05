@@ -86,9 +86,9 @@ Log-Info "🧱 FusionCloudX Windows Bootstrap starting..."
 $updateNow = $true
 
 if ($updateNow) {
-    Log-Info "Checking for Windows updates..."
     Install-ModuleIfNeeded -moduleName "PSWindowsUpdate" -force:$true
     Import-Module PSWindowsUpdate
+    Log-Info "Checking for Windows updates..."
     $updates = Get-WindowsUpdate -AcceptAll -IgnoreReboot 
     if ($updates) {
         Log-Info "Installing Windows updates..."
