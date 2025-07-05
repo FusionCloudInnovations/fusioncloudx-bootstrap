@@ -61,3 +61,22 @@ function Is-AppInstalled {
 Require-Admin
 Log-Info "🧱 FusionCloudX Windows Bootstrap starting..."
 
+# ─────────────────────────────────────────────────────────────
+# Optional: Run Windows Update
+# ─────────────────────────────────────────────────────────────
+$updateNow = $true
+
+if ($updateNow) {
+    Log-Info "Checking for Windows updates..."
+    Install-ModuleIfNeeded -moduleName "PSWindowsUpdate" -force:$true
+    Import-Module PSWindowsUpdate
+    $updates = Get-WindowsUpdate -AcceptAll -IgnoreReboot 
+    if ($updates) {
+        Log-Info "Installing Windows updates..."
+        $updates | Install-WindowsUpdate -AcceptAll -IgnoreReboot -Verbose
+        Log-Success "Windows updates installed successfully."
+    } else {
+        Log-Info "No updates available."
+    }
+}
+
