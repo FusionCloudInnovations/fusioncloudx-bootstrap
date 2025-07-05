@@ -21,21 +21,21 @@ function mark_phase_as_run() {
 on_exit() {
     local exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
-        echo "[FATAL] An unexpected error occurred. Exiting with code $exit_code" >&2
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')][FATAL] An unexpected error occurred. Exiting with code $exit_code" >&2
     else
-        echo "[EXIT] Script execution completed."
+        echo "[$(date '+%Y-%m-%d %H:%M:%S')][EXIT] Script execution completed."
     fi
     exit $exit_code
 }
 
 on_sigint() {
-    echo "[INTERRUPT] Caught SIGINT (Ctrl+C). Exiting gracefully."
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')][INTERRUPT] Caught SIGINT (Ctrl+C). Exiting gracefully."
     exit 130
 }
 
 on_error() {
     local exit_code=$?
-    echo "[ERROR] An error occurred on line $LINENO. Exit code: $exit_code"
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')][ERROR] An error occurred on line $LINENO. Exit code: $exit_code"
     exit $exit_code
 }
 
