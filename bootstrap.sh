@@ -5,7 +5,6 @@
 # This script sets up the local environment, validates components,
 # then orchestrates provisioning, config, and teardown.
 # ───────────────────────────────────────────────────────────────
-trap 'echo "[FATAL] An unexpected error occurred. Exiting." >&2; exit 1' ERR
 
 # Load modules
 source modules/init.sh
@@ -21,6 +20,10 @@ PHASES=(
     "03-network-checks"
     "04-netboot"
     "05-configure-hosts"
+    "06-fail-phase"
+    "07-exit-phase"
+    "08-sleep-phase"
+    "09-after-fail"
 )
 
 # Parse PHASE_INCLUDE if set (from .env, config/variables.env, or environment)
@@ -61,6 +64,12 @@ for phase in "${PHASES[@]}"; do
         end_time=$(date +%s)
         elapsed_time=$((end_time - start_time))
         echo "[BOOTSTRAP] Phase $phase took $elapsed_time seconds. Status: ${phase_status:-completed}"
+        # Check for stop marker
+        if [[ -f state/stop_bootstrap ]]; then
+            echo "[BOOTSTRAP] Stop marker detected. Exiting bootstrap early."
+            rm -f state/stop_bootstrap
+            exit 0
+        fi
     else
         echo "[BOOTSTRAP] Phase script $PHASE_PATH not found, skipping."
     fi
