@@ -43,16 +43,35 @@ function Install-ModuleIfNeeded {
     }
 }
 
-function Is-AppInstalled {
-    param([string]$WingetId)
-    try {
-        $app = winget list --id $WingetId -e
-        return $null -ne $app
-    } catch {
-        Log-Error "Failed to check if app is installed: $_"
-        return $false
+function Install-AppWithWingetIfMissing {
+    param(
+        [Parameter(Mandatory = $true)][string]$WingetId,
+        [string]$DisplayName = $WingetId
+    )
+
+    #Cache winget list once for performance
+    if (-not $script:WingetCache) {
+        Write-Host "[INFO] Gathering list of winget packages..." -ForegroundColor Cyan
+        $script:WingetCache = winget list
+    }
+
+    if ($script:WingetCache -match [regex]::Escape($WingetId)) {
+        Write-Host "[SKIP] $DisplayName is already installed." -ForegroundColor Yellow
+    } else {
+        Write-Host "[INFO] Installing $DisplayName..." -ForegroundColor Cyan
+        try {
+            winget install --id $WingetId -e --silent --accept-source-agreements --accept-package-agreements
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "[ERROR] Failed to install $DisplayName. Winget returned exit code $LASTEXITCODE." -ForegroundColor Red
+            } else {
+                Write-Host "[SUCCESS] $DisplayName installed successfully." -ForegroundColor Green
+            }
+        } catch {
+            Write-Host "[ERROR] Failed to install $DisplayName : $_" -ForegroundColor Red
+        }
     }
 }
+
 
 # ─────────────────────────────────────────────────────────────
 # START
@@ -100,27 +119,14 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 $tools = @(
     @{ Name = "Git"; Id = "Git.Git"; },
     @{ Name = "Microsoft.WindowsTerminal"; Id = "Microsoft.WindowsTerminal"; },
-    @{ Name = "Microsoft.PowerShell7"; Id = "Microsoft.PowerShell.7"; },
+    @{ Name = "PowerShell 7-x64 "; Id = "Microsoft.PowerShell"; },
     @{ Name = "Canonical.Ubuntu"; Id = "Canonical.Ubuntu"; },
     @{ Name = "7-Zip"; Id = "7zip.7zip"; }
 )
 
+Log-Info "Installing essential tools..."
 foreach ($tool in $tools) {
-    if (Is-AppInstalled -WingetId $tool.Id) {
-        Log-Info "$($tool.Name) is already installed."
-        continue
-    }
-    Log-Info "Installing $($tool.Name)..."
-    try {
-        winget install --id $tool.Id -e --silent --accept-source-agreements --accept-package-agreements
-        if ($LASTEXITCODE -ne 0) {
-            Log-Error "Failed to install $($tool.Name). Winget returned exit code $LASTEXITCODE."
-            continue
-        }
-        Log-Success "$($tool.Name) installed successfully."
-    } catch {
-        Log-Error "Failed to install $($tool.Name): $_"
-    }
+    Install-AppWithWingetIfMissing -WingetId $tool.Id -DisplayName $tool.Name
 }
 
 Log-Success "All essential tools installed successfully."
