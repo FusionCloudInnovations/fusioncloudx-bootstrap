@@ -177,9 +177,20 @@ if ($wslDistros -contains $ubuntuDistro) {
 }
 
 # ─────────────────────────────────────────────────────────────
+# Ensure GitHub SSH key is imported in WSL via ssh-import-id
+# ─────────────────────────────────────────────────────────────
+$githubUsername = "thisisbramiller"
+
+Log-Info "Ensuring ssh-import-id is installed in WSL..."
+wsl sudo apt-get Update -y
+wsl sudo apt-get install -y ssh-import-id
+
+Log-Info "Importing SSH keys from GitHub user: $githubUsername"
+wsl ssh-import-id gh:$githubUsername
+
+# ─────────────────────────────────────────────────────────────
 # Clone the FusionCloudX bootstrap repository inside WSL and launch bootstrap.sh
 # ─────────────────────────────────────────────────────────────
-
 $repoUrl = "https://github.com/FusionCloudX/fusioncloudx-bootstrap.git"
 $clonePath = "/home/$(wsl whoami)/fusioncloudx-bootstrap"
 
@@ -189,8 +200,8 @@ if (-not (Test-Path -Path $clonePath)) {
     if ($LASTEXITCODE -ne 0) {
         Log-Error "Failed to clone repository. Exit code: $LASTEXITCODE"
     } else {
-        Log-Success "Repository cloned successfully."
+        Log-Success "Repository cloned successfully to $clonePath."
     }
 } else {
-    Log-Info "FusionCloudX bootstrap repository already exists in WSL."
+    Log-Info "FusionCloudX bootstrap repository already exists in WSL at $clonePath."
 }
