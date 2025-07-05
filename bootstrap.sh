@@ -5,7 +5,6 @@
 # This script sets up the local environment, validates components,
 # then orchestrates provisioning, config, and teardown.
 # ───────────────────────────────────────────────────────────────
-set -euo pipefail
 trap 'echo "[FATAL] An unexpected error occurred. Exiting." >&2; exit 1' ERR
 
 # Load modules

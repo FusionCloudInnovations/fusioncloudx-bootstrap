@@ -16,3 +16,4 @@ function mark_phase_as_run() {
     echo "$phase_name" >> "$RAN_FILE"
     echo "[STATE] Marked phase '$phase_name' as run"
 }
+false
