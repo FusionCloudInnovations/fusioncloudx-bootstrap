@@ -5,4 +5,4 @@ set -euo pipefail
 source "$(dirname "$0")/../../modules/logging.sh"
 
 
-log_phase "[PRECHECK] Running pre-checks for FusionCloudX bootstrap..."
+log_phase "[PRECHECK] Running pre-checks for FusionCloudX bootstrap..." "start"

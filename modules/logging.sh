@@ -56,6 +56,11 @@ log_debug()   { [[ "$DEBUG" -eq 1 ]] && echo -e "${YELLOW}[DEBUG]${NC}   $1"; }
 log_phase() {
   local phase="$1"
   local status="$2"
+
+  if [[ -z "$status" ]]; then
+    log_error "[BOOTSTRAP] log_phase called without status argument for phase: $phase"
+    return 1
+  fi
   
   case "$status" in
     start)    log_info    "[BOOTSTRAP] Starting phase:";;
