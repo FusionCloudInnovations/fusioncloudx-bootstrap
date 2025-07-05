@@ -14,3 +14,6 @@ echo "[BOOTSTRAP] Modules loaded, beginning bootstrap sequence..."
 
 source modules/notify.sh
 send_notification "Bootstrapping complete"
+
+echo "[BOOTSTRAP] Running Phase: 00-precheck"
+bash phases/00-precheck/run.sh || { echo "[ERROR] Phase 00 failed"; exit 1; }
