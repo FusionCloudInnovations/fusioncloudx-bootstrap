@@ -38,49 +38,48 @@ if [[ -n "${PHASE_INCLUDE:-}" ]]; then
 fi
 
 for phase in "${PHASES[@]}"; do
-    # If PHASE_INCLUDE is set, skip phases not in the list
-    if [[ -n "${PHASE_INCLUDE:-}" ]]; then
-        if [[ ! " ${INCLUDED[@]} " =~ " $phase " ]]; then
-            log_warn "[BOOTSTRAP] Phase $phase not in inclusion list, skipping."
-            continue
-        fi
+    # Check inclusion
+    if [[ -n "${PHASE_INCLUDE:-}" && ! " ${INCLUDED[@]} " =~ " $phase " ]]; then
+        log_phase "$phase" "skip"
+        continue
     fi
 
     PHASE_PATH="phases/$phase/run.sh"
-    log_info "[BOOTSTRAP] Executing phase: $phase"
 
     if [[ -f "$PHASE_PATH" ]]; then
-        start_time=$(date +%s)
         if grep -qx "$phase" "$RAN_FILE"; then
-            log_warn "[BOOTSTRAP] Phase $phase already completed, skipping."
-            phase_status="skipped"
-        else
-            if bash "$PHASE_PATH"; then
-                log_success "[BOOTSTRAP] Phase $phase completed successfully."
-                mark_phase_as_run "$phase"
-                phase_status="completed"
-            else
-                log_error "[BOOTSTRAP] Phase $phase failed, aborting bootstrap."
-                BOOTSTRAP_SUCCESS=0
-                exit 1
-            fi
+            log_phase "$phase" "skip"
+            continue
         fi
-        end_time=$(date +%s)
-        elapsed_time=$((end_time - start_time))
-        log_info "[BOOTSTRAP] Phase $phase took $elapsed_time seconds. Status: ${phase_status:-completed}"
 
+        log_phase "$phase" "start"
+        start_time=$(date +%s)
+
+        if bash "$PHASE_PATH"; then
+            end_time=$(date +%s)
+            elapsed=$((end_time - start_time))
+            mark_phase_as_run "$phase"
+            log_phase "$phase" "success" "$elapsed"
+        else
+            log_phase "$phase" "fail"
+            BOOTSTRAP_SUCCESS=0
+            exit 1
+        fi
+
+        # Stop marker check
         if [[ -f state/stop_bootstrap ]]; then
-            log_warn "[BOOTSTRAP] Stop marker detected. Exiting bootstrap early."
+            log_bootstrap "[BOOTSTRAP] Stop marker detected. Exiting early."
             rm -f state/stop_bootstrap
             BOOTSTRAP_SUCCESS=0
             exit 0
         fi
     else
-        log_warn "[BOOTSTRAP] Phase script $PHASE_PATH not found, skipping."
+        log_bootstrap "[BOOTSTRAP] Phase script $PHASE_PATH not found, skipping."
     fi
 done
 
 if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
+    log_success "[NOTIFY] ✅ FusionCloudX Bootstrapping complete"
     send_notification "✅ FusionCloudX Bootstrapping complete"
 else
     log_error "[NOTIFY] ❌ FusionCloudX Bootstrapping did not complete successfully."

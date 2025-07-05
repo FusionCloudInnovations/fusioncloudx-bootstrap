@@ -26,25 +26,40 @@ log_bootstrap() {
 log_info() {
   local message="$1"
   local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
-  printf "%s${BLUE}[INFO]${NC} %s\n" "$timestamp" "$message" | tee -a "$LOG_FILE"
+  [[ "$SILENT" -eq 0 ]] && printf "%s${BLUE}[INFO]${NC} %s\n" "$timestamp" "$message" | tee -a "$LOG_FILE"
 }
 
 log_success() {
   local message="$1"
   local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
-  printf "%s${GREEN}[SUCCESS]${NC} %s\n" "$timestamp" "$message" | tee -a "$LOG_FILE"
+  [[ "$SILENT" -eq 0 ]] && printf "%s${GREEN}[SUCCESS]${NC} %s\n" "$timestamp" "$message" | tee -a "$LOG_FILE"
 }
 
 log_warn() {
   local message="$1"
   local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
-  printf "%s${YELLOW}[WARN]${NC} %s\n" "$timestamp" "$message" | tee -a "$LOG_FILE"
+  [[ "$SILENT" -eq 0 ]] && printf "%s${YELLOW}[WARN]${NC} %s\n" "$timestamp" "$message" | tee -a "$LOG_FILE"
 }
 
 log_error() {
   local message="$1"
   local timestamp="[$(date '+%Y-%m-%d %H:%M:%S')]"
   printf "%s${RED}[ERROR]${NC} %s\n" "$timestamp" "$message" | tee -a "$LOG_FILE" >&2
+}
+
+log_debug()   { [[ "$DEBUG" -eq 1 ]] && echo -e "${YELLOW}[DEBUG]${NC}   $1"; }
+
+log_phase() {
+  local phase="$1"
+  local status="$2"
+  
+  case "$status" in
+    start)    log_info    "[BOOTSTRAP] Starting phase:";;
+    skip)     log_warn    "[BOOTSTRAP] Skipping already-run phase: $phase";;
+    complete) log_success "[BOOTSTRAP] $phase completed successfully:";;
+    fail)     log_error   "[BOOTSTRAP] $phase failed:";;
+    *)        log_error   "[BOOTSTRAP] Phase $phase: status = $status";
+  esac
 }
 
 # Print startup banner
