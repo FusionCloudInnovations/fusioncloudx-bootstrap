@@ -14,5 +14,5 @@ export ENV_FILE=".env"
 [ -f "$ENV_FILE" ] && source "$ENV_FILE"
 [ -f "config/variables.env" ] && source "config/variables.env"
 
-log_bootstrap "[INIT] Bootstrap environment ready"
+log_success "[INIT] Bootstrap environment ready"
 
