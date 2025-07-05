@@ -5,13 +5,16 @@
 # This script sets up the local environment, validates components,
 # then orchestrates provisioning, config, and teardown.
 # ───────────────────────────────────────────────────────────────
+set -euo pipefail
+trap 'echo "[FATAL] An unexpected error occurred. Exiting." >&2; exit 1' ERR
 
+# Load modules
 source modules/init.sh
 source modules/logging.sh
 source modules/state.sh
+source modules/notify.sh
 
 echo "[BOOTSTRAP] Modules loaded, beginning bootstrap sequence..."
-
 
 PHASES=(
     "00-precheck"
@@ -23,9 +26,21 @@ PHASES=(
 )
 
 for phase in "${PHASES[@]}"; do
-    echo "[BOOTSTRAP] Running Phase: $phase"
-    bash "phases/$phase/run.sh" || { echo "[ERROR] Phase $phase failed"; exit 1; }
+    PHASE_PATH="phases/$phase/run.sh"
+    echo "[BOOTSTRAP] Executing phase: $phase"
+
+    if [[ -f "$PHASE_PATH" ]]; then
+        if bash "$PHASE_PATH"; then
+            echo "[BOOTSTRAP] Phase $phase completed successfully."
+            mark_phase_as_run "$phase"
+        else
+            echo "[BOOTSTRAP] Phase $phase failed, aborting bootstrap."
+            exit 1
+        fi
+    else
+        echo "[BOOTSTRAP] Phase script $PHASE_PATH not found, skipping."
+    fi
 done
 
-source modules/notify.sh
-send_notification "Bootstrapping complete"
+# Send notification at the end
+send_notification "✅ FusionCloudX Bootstrapping complete"
