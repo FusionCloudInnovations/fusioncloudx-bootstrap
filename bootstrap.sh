@@ -5,23 +5,7 @@
 # This script sets up the local environment, validates components,
 # then orchestrates provisioning, config, and teardown.
 # ───────────────────────────────────────────────────────────────
-╰─ PHASE_INCLUDE="06-fail-phase,09-after-fail" bash bootstrap.sh                                                                                                                               ─╯ 
-[INIT] Bootstrap environment ready
-╭───────────────────────────────────────────────╮
-│  🧱 FusionCloudX Bootstrap: Getting Started... │
-╰───────────────────────────────────────────────╯
 
-[STATE] Initialized runtime state at state/ran_phases.txt
-[BOOTSTRAP] Modules loaded, beginning bootstrap sequence...
-[BOOTSTRAP] Phase 00-precheck not in inclusion list, skipping.
-[BOOTSTRAP] Phase 01-wsl-init not in inclusion list, skipping.
-[BOOTSTRAP] Phase 02-tools not in inclusion list, skipping.
-[BOOTSTRAP] Phase 03-network-checks not in inclusion list, skipping.
-[BOOTSTRAP] Phase 04-netboot not in inclusion list, skipping.
-[BOOTSTRAP] Phase 05-configure-hosts not in inclusion list, skipping.
-[BOOTSTRAP] Executing phase: 06-fail-phase
-[BOOTSTRAP] Phase 06-fail-phase failed, aborting bootstrap.
-[EXIT] Script execution completed.
 BOOTSTRAP_SUCCESS=1
 
 # Load modules

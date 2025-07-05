@@ -18,10 +18,12 @@ function mark_phase_as_run() {
     echo "[STATE] Marked phase '$phase_name' as run"
 }
 
-trap_handler() {
+on_exit() {
     local exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
         echo "[FATAL] An unexpected error occurred. Exiting with code $exit_code" >&2
+    else
+        echo "[EXIT] Script execution completed."
     fi
     exit $exit_code
 }
@@ -37,11 +39,6 @@ on_error() {
     exit $exit_code
 }
 
-on_exit() {
-    echo "[EXIT] Script execution completed."
-}
-
-trap trap_handler EXIT
+trap on_exit EXIT
 trap on_sigint INT
 trap on_error ERR
-trap on_exit EXIT
