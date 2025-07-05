@@ -121,3 +121,17 @@ foreach ($tool in $tools) {
 
 Log-Success "All essential tools installed successfully."
 
+# ─────────────────────────────────────────────────────────────
+# Confgure Git
+# ─────────────────────────────────────────────────────────────
+$gitConfig = @{
+    "user.name" = "Branden Miller"
+    "user.email" = "76793954+thisisbramiller@users.noreply.github.com"
+    "core.editor" = "code --wait"
+}
+
+foreach ($key in $gitConfig.Keys) {
+    Log-Info "Configuring Git: $key = $($gitConfig[$key])"
+    git config --global $key $gitConfig[$key]
+}
+
