@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 set -euo pipefail
 
 # Load logging and other modules
@@ -45,7 +44,6 @@ main() {
 
     if bash "$PHASE_PATH"; then
       mark_phase_as_run "$PHASE_NAME"
-      log_success "[STATE] Marked phase '$PHASE_NAME' as run"
     else
       log_error "[BOOTSTRAP] $PHASE_NAME failed"
       BOOTSTRAP_SUCCESS=0
