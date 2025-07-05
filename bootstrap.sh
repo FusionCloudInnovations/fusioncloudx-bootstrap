@@ -5,6 +5,24 @@
 # This script sets up the local environment, validates components,
 # then orchestrates provisioning, config, and teardown.
 # ───────────────────────────────────────────────────────────────
+╰─ PHASE_INCLUDE="06-fail-phase,09-after-fail" bash bootstrap.sh                                                                                                                               ─╯ 
+[INIT] Bootstrap environment ready
+╭───────────────────────────────────────────────╮
+│  🧱 FusionCloudX Bootstrap: Getting Started... │
+╰───────────────────────────────────────────────╯
+
+[STATE] Initialized runtime state at state/ran_phases.txt
+[BOOTSTRAP] Modules loaded, beginning bootstrap sequence...
+[BOOTSTRAP] Phase 00-precheck not in inclusion list, skipping.
+[BOOTSTRAP] Phase 01-wsl-init not in inclusion list, skipping.
+[BOOTSTRAP] Phase 02-tools not in inclusion list, skipping.
+[BOOTSTRAP] Phase 03-network-checks not in inclusion list, skipping.
+[BOOTSTRAP] Phase 04-netboot not in inclusion list, skipping.
+[BOOTSTRAP] Phase 05-configure-hosts not in inclusion list, skipping.
+[BOOTSTRAP] Executing phase: 06-fail-phase
+[BOOTSTRAP] Phase 06-fail-phase failed, aborting bootstrap.
+[EXIT] Script execution completed.
+BOOTSTRAP_SUCCESS=1
 
 # Load modules
 source modules/init.sh
@@ -58,6 +76,7 @@ for phase in "${PHASES[@]}"; do
                 phase_status="completed"
             else
                 echo "[BOOTSTRAP] Phase $phase failed, aborting bootstrap."
+                BOOTSTRAP_SUCCESS=0
                 exit 1
             fi
         fi
@@ -68,6 +87,7 @@ for phase in "${PHASES[@]}"; do
         if [[ -f state/stop_bootstrap ]]; then
             echo "[BOOTSTRAP] Stop marker detected. Exiting bootstrap early."
             rm -f state/stop_bootstrap
+            BOOTSTRAP_SUCCESS=0
             exit 0
         fi
     else
@@ -75,5 +95,9 @@ for phase in "${PHASES[@]}"; do
     fi
 done
 
-# Send notification at the end
-send_notification "✅ FusionCloudX Bootstrapping complete"
+# Send notification at the end only if all phases succeeded
+if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
+    send_notification "✅ FusionCloudX Bootstrapping complete"
+else
+    echo "[NOTIFY] ❌ FusionCloudX Bootstrapping did not complete successfully."
+fi
