@@ -57,15 +57,15 @@ log_phase() {
   local phase="$1"
   local status="$2"
 
-  if [[ -z "$status" ]]; then
-    log_error "[BOOTSTRAP] log_phase called without status argument for phase: $phase"
+  if [[ "DEBUG" -eq 1 && -z "$status" ]]; then
+    log_error "[DEBUG] log_phase called without status argument for phase: $phase"
     return 1
   fi
   
   case "$status" in
-    start)    log_info    "[BOOTSTRAP] Starting phase:";;
+    start)    log_info    "[BOOTSTRAP] Starting phase: $phase";;
     skip)     log_warn    "[BOOTSTRAP] Skipping already-run phase: $phase";;
-    complete) log_success "[BOOTSTRAP] $phase completed successfully:";;
+    complete) log_success "[BOOTSTRAP] $phase completed successfully.";;
     fail)     log_error   "[BOOTSTRAP] $phase failed:";;
     *)        log_error   "[BOOTSTRAP] Phase $phase: status = $status";
   esac
