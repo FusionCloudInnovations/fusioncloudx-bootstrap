@@ -26,3 +26,38 @@ function Require-Admin {
     }
 }
 
+function Install-ModuleIfNeeded {
+    param (
+        [string]$moduleName,
+        [switch]$force
+    )
+    if (-not (Get-Module -ListAvailable -Name $moduleName)) {
+        Log-Info "Installing module: $moduleName"
+        Install-Module -Name $moduleName -Force:$force -Scope CurrentUser
+        if ($LASTEXITCODE -ne 0) {
+            Log-Error "Failed to install module: $moduleName"
+            exit 1
+        }
+    } else {
+        Log-Info "Module $moduleName is already installed."
+    }
+}
+
+function Is-AppInstalled {
+    param([string]$WingetId)
+    try {
+        $app = winget list --id $WingetId -e
+        return $null -ne $app
+    } catch {
+        Log-Error "Failed to check if app is installed: $_"
+        return $false
+    }
+}
+
+# ─────────────────────────────────────────────────────────────
+# START
+# ─────────────────────────────────────────────────────────────
+
+Require-Admin
+Log-Info "🧱 FusionCloudX Windows Bootstrap starting..."
+
