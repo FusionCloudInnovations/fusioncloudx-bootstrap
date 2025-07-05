@@ -80,3 +80,17 @@ if ($updateNow) {
     }
 }
 
+# ─────────────────────────────────────────────────────────────
+# Ensure Winget is installed
+# ─────────────────────────────────────────────────────────────
+if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    Log-Info "Winget not found. Installing Winget..."
+    $wingetUrl = "https://aka.ms/getwinget"
+    $wingetInstaller = "$env:TEMP\Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle"
+    Invoke-WebRequest -Uri $wingetUrl -OutFile $wingetInstaller
+    Add-AppxPackage -Path $wingetInstaller
+    Log-Success "Winget installed successfully."
+} else {
+    Log-Info "Winget is already installed."
+}
+
