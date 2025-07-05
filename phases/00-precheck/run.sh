@@ -1,4 +1,3 @@
 #!/usr/bin/env bash
 
-
-echo "[PRECHECK] Running pre-checks for FusionCloudX bootstrap..."
+log_bootstrap "[PRECHECK] Running pre-checks for FusionCloudX bootstrap..."
