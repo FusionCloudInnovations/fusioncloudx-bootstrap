@@ -163,7 +163,8 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
 
 # Set Ubuntu as the default WSL distribution
 $ubuntuDistro = "Ubuntu"
-if (wsl -l -q | Select-String -Pattern $ubuntuDistro) {
+$wslDistros = wsl -l -q
+if ($wslDistros -contains $ubuntuDistro) {
     Log-Info "Setting $ubuntuDistro as the default WSL distribution..."
     wsl --set-default $ubuntuDistro
     if ($LASTEXITCODE -ne 0) {
@@ -173,4 +174,23 @@ if (wsl -l -q | Select-String -Pattern $ubuntuDistro) {
     }
 } else {
     Log-Warn "$ubuntuDistro not found in WSL distributions."
+}
+
+# ─────────────────────────────────────────────────────────────
+# Clone the FusionCloudX bootstrap repository inside WSL and launch bootstrap.sh
+# ─────────────────────────────────────────────────────────────
+
+$repoUrl = "https://github.com/FusionCloudX/fusioncloudx-bootstrap.git"
+$clonePath = "/home/$(wsl whoami)/fusioncloudx-bootstrap"
+
+if (-not (Test-Path -Path $clonePath)) {
+    Log-Info "Cloning FusionCloudX bootstrap repository into WSL..."
+    wsl git clone $repoUrl $clonePath
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "Failed to clone repository. Exit code: $LASTEXITCODE"
+    } else {
+        Log-Success "Repository cloned successfully."
+    }
+} else {
+    Log-Info "FusionCloudX bootstrap repository already exists in WSL."
 }
