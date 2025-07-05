@@ -29,13 +29,23 @@ for phase in "${PHASES[@]}"; do
     echo "[BOOTSTRAP] Executing phase: $phase"
 
     if [[ -f "$PHASE_PATH" ]]; then
-        if bash "$PHASE_PATH"; then
-            echo "[BOOTSTRAP] Phase $phase completed successfully."
-            mark_phase_as_run "$phase"
+        start_time=$(date +%s)
+        if grep -qx "$phase" "$RAN_FILE"; then
+            echo "[BOOTSTRAP] Phase $phase already completed, skipping."
+            phase_status="skipped"
         else
-            echo "[BOOTSTRAP] Phase $phase failed, aborting bootstrap."
-            exit 1
+            if bash "$PHASE_PATH"; then
+                echo "[BOOTSTRAP] Phase $phase completed successfully."
+                mark_phase_as_run "$phase"
+                phase_status="completed"
+            else
+                echo "[BOOTSTRAP] Phase $phase failed, aborting bootstrap."
+                exit 1
+            fi
         fi
+        end_time=$(date +%s)
+        elapsed_time=$((end_time - start_time))
+        echo "[BOOTSTRAP] Phase $phase took $elapsed_time seconds. Status: ${phase_status:-completed}"
     else
         echo "[BOOTSTRAP] Phase script $PHASE_PATH not found, skipping."
     fi
