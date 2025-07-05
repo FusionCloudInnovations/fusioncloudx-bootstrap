@@ -106,6 +106,10 @@ $tools = @(
 )
 
 foreach ($tool in $tools) {
+    if (Is-AppInstalled -WingetId $tool.Id) {
+        Log-Info "$($tool.Name) is already installed."
+        continue
+    }
     Log-Info "Installing $($tool.Name)..."
     try {
         winget install --id $tool.Id -e --silent --accept-source-agreements --accept-package-agreements
