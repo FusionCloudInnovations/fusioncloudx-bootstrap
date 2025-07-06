@@ -4,6 +4,7 @@
 # Description: This script sets up the FusionCloudX environment on a Windows machine. Initial PowerShell script to install necessary components and configure the system on fresh Windows 11.
 # Usage: Run this script as an administrator to ensure all components are installed correctly.
 
+$customDistroName = "Ubuntu-FCX"
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
 # ─────────────────────────────────────────────────────────────
@@ -70,6 +71,25 @@ function Install-AppWithWingetIfMissing {
             Write-Host "[ERROR] Failed to install $DisplayName : $_" -ForegroundColor Red
         }
     }
+}
+
+function Invoke-WSLCommand {
+    param (
+        [string]$cmd
+    )
+    
+    $escapedCmd = $cmd.Replace('"', '\"')
+    Log-Info "Executing in WSL [$customDistroName]: $cmd"
+    
+    & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
+    # $output = & wsl -d $customDistroName -- bash -c "$escapedCmd"
+
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "WSL command failed with exit code $LASTEXITCODE"
+        exit 1
+    }
+
+    # return $output
 }
 
 
@@ -148,32 +168,18 @@ foreach ($key in $gitConfig.Keys) {
 # ─────────────────────────────────────────────────────────────
 # Install WSL and ephemeral Ubuntu
 # ─────────────────────────────────────────────────────────────
+Log-Info "Installing Ubuntu WSL distro as $customDistroName..."
 if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
     Log-Info "WSL not found. Installing WSL..."
-    wsl --install --no-distribution --no-launch
+    wsl --install -d Ubuntu --name $customDistroName --no-launch
     wsl --set-default-version 2
     if ($LASTEXITCODE -ne 0) {
         Log-Error "Failed to install WSL. Exit code: $LASTEXITCODE"
     } else {
-        Log-Success "WSL installed successfully."
+        Log-Success "WSL distro installed successfully as $customDistroName."
     }
 } else {
     Log-Info "WSL is already installed."
-}
-
-# Set Ubuntu as the default WSL distribution
-$ubuntuDistro = "Ubuntu"
-$wslDistros = wsl -l -q
-if ($wslDistros -contains $ubuntuDistro) {
-    Log-Info "Setting $ubuntuDistro as the default WSL distribution..."
-    wsl --set-default $ubuntuDistro
-    if ($LASTEXITCODE -ne 0) {
-        Log-Error "Failed to set $ubuntuDistro as default WSL distribution. Exit code: $LASTEXITCODE"
-    } else {
-        Log-Success "$ubuntuDistro set as the default WSL distribution."
-    }
-} else {
-    Log-Warn "$ubuntuDistro not found in WSL distributions."
 }
 
 # ─────────────────────────────────────────────────────────────
@@ -181,9 +187,9 @@ if ($wslDistros -contains $ubuntuDistro) {
 # This is necessary for running scripts without needing to enter a password each time.
 # ─────────────────────────────────────────────────────────────
 $wslSudoConfigPath = "/etc/sudoers.d/wsl"
-if (-not (wsl test -f $wslSudoConfigPath)) {
+if (-not (Invoke-WSLCommand test -f $wslSudoConfigPath)) {
     Log-Info "Enabling passwordless sudo in WSL..."
-    wsl -u root bash -c "echo '$(wsl whoami) ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
+    wsl -u root bash -c "echo '$(Invoke-WSLCommand whoami) ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
     if ($LASTEXITCODE -ne 0) {
         Log-Error "Failed to enable passwordless sudo in WSL. Exit code: $LASTEXITCODE"
     } else {
@@ -201,17 +207,19 @@ Log-Info "Linking existing Windows repo into WSL..."
 $wslMountPath = "/mnt/f/Personal/Repositories/fusioncloudx-bootstrap"
 $wslTarget = "/home/fcx/fusioncloudx-bootstrap"
 
-# Convert Windows path to WSL-style mount path
-
-# Create the symlink
-wsl ln -s $wslMountPath $wslTarget
-if ($LASTEXITCODE -ne 0) {
-    Log-Error "Failed to link Windows repo into WSL. Exit code: $LASTEXITCODE"
-    exit 1
+Invoke-WSLCommand test -L $wslTarget
+if ($LASTEXITCODE -eq 0) {
+    Log-Info "Symlink already exists at $wslTarget. Skipping symlink creation."
 } else {
-    Log-Success "Repo linked into WSL successfully."
+    # Create the symlink
+    Invoke-WSLCommand ln -s $wslMountPath $wslTarget
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "Failed to link Windows repo into WSL. Exit code: $LASTEXITCODE"
+        exit 1
+    } else {
+        Log-Success "Repo linked into WSL successfully."
+    }
 }
-
 
 # ─────────────────────────────────────────────────────────────
 # COMPLETE
