@@ -189,7 +189,9 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
 $wslSudoConfigPath = "/etc/sudoers.d/wsl"
 if (-not (Invoke-WSLCommand test -f $wslSudoConfigPath)) {
     Log-Info "Enabling passwordless sudo in WSL..."
-    wsl -u root bash -c "echo '$(Invoke-WSLCommand whoami) ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
+    $user = & wsl -d $customDistroName -- whoami
+    wsl -u root bash -c "echo '$user ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
+    # wsl -u root bash -c "echo '$(Invoke-WSLCommand whoami) ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
     if ($LASTEXITCODE -ne 0) {
         Log-Error "Failed to enable passwordless sudo in WSL. Exit code: $LASTEXITCODE"
     } else {
@@ -207,6 +209,12 @@ Log-Info "Linking existing Windows repo into WSL..."
 $wslMountPath = "/mnt/f/Personal/Repositories/fusioncloudx-bootstrap"
 $wslTarget = "/home/fcx/fusioncloudx-bootstrap"
 
+Invoke-WSLCommand "[[ -e '$wslTarget' ]]"
+if ($LASTEXITCODE -eq 0) {
+    Log-Info "Target directory already exists in WSL. Skipping symlink creation."
+} else {
+    Log-Info "Target directory does not exist in WSL. Proceeding with symlink creation."
+}
 Invoke-WSLCommand test -L $wslTarget
 if ($LASTEXITCODE -eq 0) {
     Log-Info "Symlink already exists at $wslTarget. Skipping symlink creation."
