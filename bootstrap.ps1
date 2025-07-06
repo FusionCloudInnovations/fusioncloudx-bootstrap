@@ -146,7 +146,7 @@ foreach ($key in $gitConfig.Keys) {
 }
 
 # ─────────────────────────────────────────────────────────────
-# Install WSL and Ubuntu
+# Install WSL and ephemeral Ubuntu
 # ─────────────────────────────────────────────────────────────
 if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
     Log-Info "WSL not found. Installing WSL..."
@@ -175,6 +175,24 @@ if ($wslDistros -contains $ubuntuDistro) {
 } else {
     Log-Warn "$ubuntuDistro not found in WSL distributions."
 }
+
+# ─────────────────────────────────────────────────────────────
+# Enable passwordless sudo in WSL ephemeral Ubuntu
+# This is necessary for running scripts without needing to enter a password each time.
+# ─────────────────────────────────────────────────────────────
+$wslSudoConfigPath = "/etc/sudoers.d/wsl"
+if (-not (wsl test -f $wslSudoConfigPath)) {
+    Log-Info "Enabling passwordless sudo in WSL..."
+    wsl -u root bash -c "echo '$(wsl whoami) ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "Failed to enable passwordless sudo in WSL. Exit code: $LASTEXITCODE"
+    } else {
+        Log-Success "Passwordless sudo enabled in WSL."
+    }
+} else {
+    Log-Info "Passwordless sudo already configured in WSL."
+}
+
 
 # ─────────────────────────────────────────────────────────────
 # Ensure GitHub SSH key is imported in WSL via ssh-import-id
