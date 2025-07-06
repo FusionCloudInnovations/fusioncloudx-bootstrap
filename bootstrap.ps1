@@ -6,7 +6,7 @@
 
 $distroName = "Ubuntu"
 $customDistroName = "Ubuntu-FCX"
-$wslEphemeral = $false
+$wslEphemeral = $true
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
 # ─────────────────────────────────────────────────────────────
@@ -88,25 +88,24 @@ function Invoke-WSLCommand {
         [switch]$AllowFailure = $false
     )
     
-    $escapedCmd = $cmd.Replace('"', '\"')
     Log-Info "Executing in WSL [$customDistroName]: $cmd"
     
     if ($DryRun) {
-        Log-Info "Dry run: & wsl -d $customDistroName -- bash -c `"$escapedCmd`""
+        Log-Info "Dry run: & wsl -d $customDistroName -- bash -c '$cmd'"
     } else {
         if ($CaptureOutput) {
             Log-Info "Capturing output from WSL command."
-            $output = & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
+            $output = & wsl -d $customDistroName -- bash -c $cmd
             if ($LASTEXITCODE -ne 0 -and -not $AllowFailure) {
-                Log-Error "WSL command failed with exit code $LASTEXITCODE"
+                Log-Error "WSL command $escapedCmd failed with exit code $LASTEXITCODE"
                 exit 1
             }
             return $output
         } else {
-            & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
+            & wsl -d $customDistroName -- bash -c $cmd
         
             if ($LASTEXITCODE -ne 0 -and -not $AllowFailure) {
-                Log-Error "WSL command failed with exit code $LASTEXITCODE"
+                Log-Error "WSL command $escapedCmd failed with exit code $LASTEXITCODE"
                 exit 1
             }
         }
@@ -118,20 +117,33 @@ function Remove-CustomWSLDistro {
         [string]$DistroName = $customDistroName
     )
 
-    Log-Info "Shutting down WSL..."
-    wsl --terminate $DistroName
+    Log-Info "Checking for existing WSL distro: $distroName..."
 
-    Log-Info "Unregistering WSL distro: $DistroName"
-    wsl --unregister $DistroName
+    $existingDistros = & wsl --list --quiet
+    if ($existingDistros -contains $distroName) {
+        Log-Warn "Distro '$distroName' exists. Proceeding with teardown..."
 
-    if ($LASTEXITCODE -ne 0) {
-        Log-Error "Failed to unregister WSL distro: $DistroName. Exit code: $LASTEXITCODE"
-        exit 1
+        Log-Info "Terminating '$distroName'..."
+        & wsl --terminate $distroName
+
+        Log-Info "Unregistering '$distroName'..."
+        & wsl --unregister $distroName
+
+        if ($LASTEXITCODE -eq 0) {
+            Log-Success "WSL distro '$distroName' unregistered successfully."
+        } else {
+            Log-Error "Failed to unregister WSL distro '$distroName'. Exit code: $LASTEXITCODE"
+        }
     } else {
-        Log-Success "WSL distro '$DistroName' unregistered successfully."
+        Log-Info "No teardown required. WSL distro '$distroName' is not registered."
     }
 }
 
+function Convert-ToWSLPath ($windowsPath) {
+    $driveLetter = $windowsPath.Substring(0,1).ToLower()
+    $restOfPath = $windowsPath.Substring(2) -replace '\\', '/'
+    return "/mnt/$driveLetter/$restOfPath"
+}
 
 # ─────────────────────────────────────────────────────────────
 # START
@@ -206,7 +218,7 @@ foreach ($key in $gitConfig.Keys) {
 }
 
 # ─────────────────────────────────────────────────────────────
-# Install WSL and ephemeral Ubuntu
+# Install WSL and Alias Ubuntu Distro with Zero Manual Input
 # ─────────────────────────────────────────────────────────────
 Log-Info "Installing Ubuntu WSL distro as $customDistroName..."
 if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
@@ -215,6 +227,7 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
     wsl --set-default-version 2
     if ($LASTEXITCODE -ne 0) {
         Log-Error "Failed to install WSL. Exit code: $LASTEXITCODE"
+        exit 1
     } else {
         Log-Success "WSL distro installed successfully as $customDistroName."
     }
@@ -222,21 +235,67 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
     Log-Info "WSL is already installed."
 }
 
+# ─────────────────────────────────────────────────────────────
 # Check if the custom distro already exists
+# ─────────────────────────────────────────────────────────────
 $wslDistros = wsl -l -q
 if ($wslDistros -contains $customDistroName) {
     Log-Warn "WSL distro '$customDistroName' already exists. Skipping installation."
 } else {
-    Log-Info "Installing Ubuntu WSL distro as $customDistroName..."
+    Log-Info "Installing WSL distro as $customDistroName..."
     wsl --install -d $distroName --name $customDistroName --no-launch
     if ($LASTEXITCODE -ne 0) {
-        Log-Error "Failed to install WSL distro '$customDistroName'. Exit code: $LASTEXITCODE"
+        Log-Error "Failed to install $distroName as '$customDistroName'. Exit code: $LASTEXITCODE"
         exit 1
     } else {
         Log-Success "WSL distro '$customDistroName' installed successfully."
     }
 }
 
+# ─────────────────────────────────────────────────────────────
+# Provision the distro (headless user creation and config)
+# ─────────────────────────────────────────────────────────────
+Log-Info "Provisioning $customDistroName (automated user creation and configuration)..."
+
+& wsl -d $customDistroName -- bash -c "id -u fcx > /dev/null 2>&1"
+if ($LASTEXITCODE -ne 0) {
+    Log-Info "User'fcx' not found. Creating user and enabling passwordless sudo..."
+
+$provisionScript = @'
+#!/bin/bash
+set -e
+
+# Create user if it doesn't exist
+if ! id "fcx" &>/dev/null; then
+    adduser --disabled-password --gecos "" fcx
+    echo "fcx ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/fcx
+    chmod 0440 /etc/sudoers.d/fcx
+    mkdir -p /home/fcx
+    chown -R fcx:fcx /home/fcx
+    echo -e "[user]\ndefault=fcx" > /etc/wsl.conf
+fi
+'@ -replace "`r`n", "`n"  # Converts CRLF to LF (UNIX line endings)
+
+    $tempScriptPath = "$env:TEMP\provision_fcx.sh"
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText($tempScriptPath, $provisionScript, $utf8NoBom)
+
+    Log-Info "Setting default user 'fcx' in WSL..."    
+    $wslScriptPath = Convert-ToWSLPath $tempScriptPath
+    & wsl -d $customDistroName -- bash "$wslScriptPath"
+
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "$customDistroName User provisioning failed. Exit code: $LASTEXITCODE"
+        exit 1
+    } else {
+        Log-Success "User 'fcx' created and sudo access configured successfully."
+        Log-Info "Restarting WSL to apply config..."
+        & wsl --terminate $customDistroName
+        Start-Sleep -Seconds 2
+    }
+} else {
+    Log-Warn "User 'fcx' already provisioned. Skipping user creation."
+}
 
 # ─────────────────────────────────────────────────────────────
 # Enable passwordless sudo in WSL ephemeral Ubuntu
@@ -264,26 +323,26 @@ Log-Info "Linking existing Windows repo into WSL..."
 $wslMountPath = "/mnt/f/Personal/Repositories/fusioncloudx-bootstrap"
 $wslTarget = "/home/fcx/fusioncloudx-bootstrap"
 
-Invoke-WSLCommand "[[ -e '$wslTarget' ]]"
+Invoke-WSLCommand "test -e $wslTarget" 
 if ($LASTEXITCODE -eq 0) {
     Log-Info "Target directory already exists in WSL. Skipping symlink creation."
 } else {
+    Invoke-WSLCommand "test -L $wslTarget" 
     Log-Info "Target directory does not exist in WSL. Proceeding with symlink creation."
-}
-$checkLinkCmd = "[[ -L '$wslTarget' || -d '$wslTarget' ]]"
-Invoke-WSLCommand $checkLinkCmd
-if ($LASTEXITCODE -eq 0) {
-    Log-Info "Symlink already exists at $wslTarget. Skipping symlink creation."
-} else {
-    # Create the symlink
-    Invoke-WSLCommand "ln -s $wslMountPath $wslTarget"
-    if ($LASTEXITCODE -ne 0) {
-        Log-Error "Failed to link Windows repo into WSL. Exit code: $LASTEXITCODE"
-        exit 1
+    if ($LASTEXITCODE -eq 0) {
+        Log-Info "Symlink already exists at $wslTarget. Skipping symlink creation."
     } else {
-        Log-Success "Repo linked into WSL successfully."
+        # Create the symlink
+        Invoke-WSLCommand "ln -s '$wslMountPath' '$wslTarget'"
+        if ($LASTEXITCODE -ne 0) {
+            Log-Error "Failed to link Windows repo into WSL. Exit code: $LASTEXITCODE"
+            exit 1
+        } else {
+            Log-Success "Repo linked into WSL successfully."
+        }
     }
 }
+
 
 # ─────────────────────────────────────────────────────────────
 # Teardown Custom Distro and Clean Up
