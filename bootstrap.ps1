@@ -6,6 +6,7 @@
 
 $distroName = "Ubuntu"
 $customDistroName = "Ubuntu-FCX"
+$wslEphemeral = $false
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
 # ─────────────────────────────────────────────────────────────
@@ -83,7 +84,8 @@ function Invoke-WSLCommand {
     param (
         [Parameter(Mandatory)][string]$cmd,
         [switch]$DryRun,
-        [switch]$CaptureOutput
+        [switch]$CaptureOutput,
+        [switch]$AllowFailure = $false
     )
     
     $escapedCmd = $cmd.Replace('"', '\"')
@@ -95,7 +97,7 @@ function Invoke-WSLCommand {
         if ($CaptureOutput) {
             Log-Info "Capturing output from WSL command."
             $output = & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
-            if ($LASTEXITCODE -ne 0) {
+            if ($LASTEXITCODE -ne 0 -and -not $AllowFailure) {
                 Log-Error "WSL command failed with exit code $LASTEXITCODE"
                 exit 1
             }
@@ -103,13 +105,31 @@ function Invoke-WSLCommand {
         } else {
             & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
         
-            if ($LASTEXITCODE -ne 0) {
+            if ($LASTEXITCODE -ne 0 -and -not $AllowFailure) {
                 Log-Error "WSL command failed with exit code $LASTEXITCODE"
                 exit 1
             }
         }
     }
+}
 
+function Remove-CustomWSLDistro {
+    param (
+        [string]$DistroName = $customDistroName
+    )
+
+    Log-Info "Shutting down WSL..."
+    wsl --terminate $DistroName
+
+    Log-Info "Unregistering WSL distro: $DistroName"
+    wsl --unregister $DistroName
+
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "Failed to unregister WSL distro: $DistroName. Exit code: $LASTEXITCODE"
+        exit 1
+    } else {
+        Log-Success "WSL distro '$DistroName' unregistered successfully."
+    }
 }
 
 
@@ -217,12 +237,13 @@ if ($wslDistros -contains $customDistroName) {
     }
 }
 
+
 # ─────────────────────────────────────────────────────────────
 # Enable passwordless sudo in WSL ephemeral Ubuntu
 # This is necessary for running scripts without needing to enter a password each time.
 # ─────────────────────────────────────────────────────────────
 $wslSudoConfigPath = "/etc/sudoers.d/dont-prompt-root-for-sudo-password"
-if (-not (Invoke-WSLCommand "test -f $wslSudoConfigPath")) {
+if (-not (Invoke-WSLCommand "test -f $wslSudoConfigPath" -AllowFailure)) {
     Log-Info "Enabling passwordless sudo in WSL..."
     $user = & wsl -d $customDistroName -- whoami
     wsl -u root bash -c "echo '$user ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
@@ -264,6 +285,12 @@ if ($LASTEXITCODE -eq 0) {
     }
 }
 
+# ─────────────────────────────────────────────────────────────
+# Teardown Custom Distro and Clean Up
+# ─────────────────────────────────────────────────────────────
+if ($wslEphemeral) {
+    Remove-CustomWSLDistro -DistroName $customDistroName
+}
 # ─────────────────────────────────────────────────────────────
 # COMPLETE
 # ─────────────────────────────────────────────────────────────
