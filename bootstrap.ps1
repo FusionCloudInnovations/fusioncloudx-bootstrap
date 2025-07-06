@@ -81,7 +81,8 @@ function Install-AppWithWingetIfMissing {
 function Invoke-WSLCommand {
     param (
         [string]$cmd,
-        [string]$DryRun
+        [string]$DryRun,
+        [switch]$CaptureOutput
     )
     
     $escapedCmd = $cmd.Replace('"', '\"')
@@ -90,15 +91,22 @@ function Invoke-WSLCommand {
     if ($DryRun) {
         Log-Info "Dry run: & wsl -d $customDistroName -- bash -c `"$escapedCmd`""
     } else {
-        & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
-        # $output = & wsl -d $customDistroName -- bash -c "$escapedCmd"
-    
-        if ($LASTEXITCODE -ne 0) {
-            Log-Error "WSL command failed with exit code $LASTEXITCODE"
-            exit 1
-        }
+        if ($CaptureOutput) {
+            Log-Info "Capturing output from WSL command."
+            $output = & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
+            if ($LASTEXITCODE -ne 0) {
+                Log-Error "WSL command failed with exit code $LASTEXITCODE"
+                exit 1
+            }
+            return $output
+        } else {
+            & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
         
-        # return $output
+            if ($LASTEXITCODE -ne 0) {
+                Log-Error "WSL command failed with exit code $LASTEXITCODE"
+                exit 1
+            }
+        }
     }
 
 }
