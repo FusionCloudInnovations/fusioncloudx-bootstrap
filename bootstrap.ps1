@@ -7,6 +7,7 @@
 $distroName = "Ubuntu"
 $customDistroName = "Ubuntu-FCX"
 $wslEphemeral = $true
+
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
 # ─────────────────────────────────────────────────────────────
@@ -91,13 +92,13 @@ function Invoke-WSLCommand {
     Log-Info "Executing in WSL [$customDistroName]: $cmd"
     
     if ($DryRun) {
-        Log-Info "Dry run: & wsl -d $customDistroName -- bash -c '$cmd'"
+        Log-Info "Dry run: & wsl -d $customDistroName -- bash -c $cmd"
     } else {
         if ($CaptureOutput) {
             Log-Info "Capturing output from WSL command."
             $output = & wsl -d $customDistroName -- bash -c $cmd
             if ($LASTEXITCODE -ne 0 -and -not $AllowFailure) {
-                Log-Error "WSL command $escapedCmd failed with exit code $LASTEXITCODE"
+                Log-Error "WSL command $cmd failed with exit code $LASTEXITCODE"
                 exit 1
             }
             return $output
@@ -105,7 +106,7 @@ function Invoke-WSLCommand {
             & wsl -d $customDistroName -- bash -c $cmd
         
             if ($LASTEXITCODE -ne 0 -and -not $AllowFailure) {
-                Log-Error "WSL command $escapedCmd failed with exit code $LASTEXITCODE"
+                Log-Error "WSL command $cmd failed with exit code $LASTEXITCODE"
                 exit 1
             }
         }
@@ -117,25 +118,31 @@ function Remove-CustomWSLDistro {
         [string]$DistroName = $customDistroName
     )
 
-    Log-Info "Checking for existing WSL distro: $distroName..."
+    Log-Info "Checking for existing WSL distro: $DistroName..."
+    
+    $existingDistros = (& wsl --list --quiet) -replace '\s+$', ''
+    $normalizedDistros = $existingDistros | ForEach-Object { $_.Trim().ToLower() }
+    Log-Info "Registered WSL distros: $($normalizedDistros -join ', ')"
+    
+    if ($normalizedDistros -contains $DistroName.ToLower()) {
+        Log-Info "WSL distro '$DistroName' found. Proceeding with teardown..."
 
-    $existingDistros = & wsl --list --quiet
-    if ($existingDistros -contains $distroName) {
-        Log-Warn "Distro '$distroName' exists. Proceeding with teardown..."
+        Log-Info "Terminating '$DistroName'..."
+        & wsl --terminate "$DistroName"
+        if ($LASTEXITCODE -ne 0) {
+            Log-Warn "WSL termination of '$DistroName' may have failed. Exit code: $LASTEXITCODE"
+        }
 
-        Log-Info "Terminating '$distroName'..."
-        & wsl --terminate $distroName
-
-        Log-Info "Unregistering '$distroName'..."
-        & wsl --unregister $distroName
+        Log-Info "Unregistering '$DistroName'..."
+        & wsl --unregister "$DistroName"
 
         if ($LASTEXITCODE -eq 0) {
-            Log-Success "WSL distro '$distroName' unregistered successfully."
+            Log-Success "WSL distro '$DistroName' unregistered successfully."
         } else {
-            Log-Error "Failed to unregister WSL distro '$distroName'. Exit code: $LASTEXITCODE"
+            Log-Error "Failed to unregister WSL distro '$DistroName'. Exit code: $LASTEXITCODE"
         }
     } else {
-        Log-Info "No teardown required. WSL distro '$distroName' is not registered."
+        Log-Info "No teardown required. WSL distro '$DistroName' is not registered."
     }
 }
 
@@ -151,6 +158,10 @@ function Convert-ToWSLPath ($windowsPath) {
 
 Require-Admin
 Log-Info "🧱 FusionCloudX Windows Bootstrap starting..."
+if ($wslEphemeral) {
+    Log-Info "Ephemeral mode active. Custom WSL distro will be removed after setup."
+}
+
 
 # ─────────────────────────────────────────────────────────────
 # Optional: Run Windows Update
@@ -323,11 +334,11 @@ Log-Info "Linking existing Windows repo into WSL..."
 $wslMountPath = "/mnt/f/Personal/Repositories/fusioncloudx-bootstrap"
 $wslTarget = "/home/fcx/fusioncloudx-bootstrap"
 
-Invoke-WSLCommand "test -e $wslTarget" 
+Invoke-WSLCommand "test -e $wslTarget" -AllowFailure
 if ($LASTEXITCODE -eq 0) {
     Log-Info "Target directory already exists in WSL. Skipping symlink creation."
 } else {
-    Invoke-WSLCommand "test -L $wslTarget" 
+    Invoke-WSLCommand "test -L $wslTarget" -AllowFailure
     Log-Info "Target directory does not exist in WSL. Proceeding with symlink creation."
     if ($LASTEXITCODE -eq 0) {
         Log-Info "Symlink already exists at $wslTarget. Skipping symlink creation."
@@ -349,6 +360,7 @@ if ($LASTEXITCODE -eq 0) {
 # ─────────────────────────────────────────────────────────────
 if ($wslEphemeral) {
     Remove-CustomWSLDistro -DistroName $customDistroName
+    Log-Info "Ephemeral mode active — clean teardown executed for $customDistroName."
 }
 # ─────────────────────────────────────────────────────────────
 # COMPLETE
