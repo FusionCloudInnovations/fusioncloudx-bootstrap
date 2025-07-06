@@ -75,21 +75,27 @@ function Install-AppWithWingetIfMissing {
 
 function Invoke-WSLCommand {
     param (
-        [string]$cmd
+        [string]$cmd,
+        [string]$DryRun
     )
     
     $escapedCmd = $cmd.Replace('"', '\"')
     Log-Info "Executing in WSL [$customDistroName]: $cmd"
     
-    & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
-    # $output = & wsl -d $customDistroName -- bash -c "$escapedCmd"
-
-    if ($LASTEXITCODE -ne 0) {
-        Log-Error "WSL command failed with exit code $LASTEXITCODE"
-        exit 1
+    if ($DryRun) {
+        Log-Info "Dry run: & wsl -d $customDistroName -- bash -c `"$escapedCmd`""
+    } else {
+        & wsl -d $customDistroName -- bash -c "`"$escapedCmd`""
+        # $output = & wsl -d $customDistroName -- bash -c "$escapedCmd"
+    
+        if ($LASTEXITCODE -ne 0) {
+            Log-Error "WSL command failed with exit code $LASTEXITCODE"
+            exit 1
+        }
+        
+        # return $output
     }
 
-    # return $output
 }
 
 
@@ -191,7 +197,6 @@ if (-not (Invoke-WSLCommand test -f $wslSudoConfigPath)) {
     Log-Info "Enabling passwordless sudo in WSL..."
     $user = & wsl -d $customDistroName -- whoami
     wsl -u root bash -c "echo '$user ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
-    # wsl -u root bash -c "echo '$(Invoke-WSLCommand whoami) ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
     if ($LASTEXITCODE -ne 0) {
         Log-Error "Failed to enable passwordless sudo in WSL. Exit code: $LASTEXITCODE"
     } else {
