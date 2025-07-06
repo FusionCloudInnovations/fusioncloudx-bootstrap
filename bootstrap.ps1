@@ -4,6 +4,7 @@
 # Description: This script sets up the FusionCloudX environment on a Windows machine. Initial PowerShell script to install necessary components and configure the system on fresh Windows 11.
 # Usage: Run this script as an administrator to ensure all components are installed correctly.
 
+$distroName = "Ubuntu"
 $customDistroName = "Ubuntu-FCX"
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
@@ -80,8 +81,8 @@ function Install-AppWithWingetIfMissing {
 
 function Invoke-WSLCommand {
     param (
-        [string]$cmd,
-        [string]$DryRun,
+        [Parameter(Mandatory)][string]$cmd,
+        [switch]$DryRun,
         [switch]$CaptureOutput
     )
     
@@ -190,7 +191,7 @@ foreach ($key in $gitConfig.Keys) {
 Log-Info "Installing Ubuntu WSL distro as $customDistroName..."
 if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
     Log-Info "WSL not found. Installing WSL..."
-    wsl --install -d Ubuntu --name $customDistroName --no-launch
+    wsl --install --no-distribution --no-launch
     wsl --set-default-version 2
     if ($LASTEXITCODE -ne 0) {
         Log-Error "Failed to install WSL. Exit code: $LASTEXITCODE"
@@ -201,12 +202,27 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
     Log-Info "WSL is already installed."
 }
 
+# Check if the custom distro already exists
+$wslDistros = wsl -l -q
+if ($wslDistros -contains $customDistroName) {
+    Log-Warn "WSL distro '$customDistroName' already exists. Skipping installation."
+} else {
+    Log-Info "Installing Ubuntu WSL distro as $customDistroName..."
+    wsl --install -d $distroName --name $customDistroName --no-launch
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "Failed to install WSL distro '$customDistroName'. Exit code: $LASTEXITCODE"
+        exit 1
+    } else {
+        Log-Success "WSL distro '$customDistroName' installed successfully."
+    }
+}
+
 # ─────────────────────────────────────────────────────────────
 # Enable passwordless sudo in WSL ephemeral Ubuntu
 # This is necessary for running scripts without needing to enter a password each time.
 # ─────────────────────────────────────────────────────────────
-$wslSudoConfigPath = "/etc/sudoers.d/wsl"
-if (-not (Invoke-WSLCommand test -f $wslSudoConfigPath)) {
+$wslSudoConfigPath = "/etc/sudoers.d/dont-prompt-root-for-sudo-password"
+if (-not (Invoke-WSLCommand "test -f $wslSudoConfigPath")) {
     Log-Info "Enabling passwordless sudo in WSL..."
     $user = & wsl -d $customDistroName -- whoami
     wsl -u root bash -c "echo '$user ALL=(ALL) NOPASSWD: ALL' > $wslSudoConfigPath"
@@ -233,12 +249,13 @@ if ($LASTEXITCODE -eq 0) {
 } else {
     Log-Info "Target directory does not exist in WSL. Proceeding with symlink creation."
 }
-Invoke-WSLCommand test -L $wslTarget
+$checkLinkCmd = "[[ -L '$wslTarget' || -d '$wslTarget' ]]"
+Invoke-WSLCommand $checkLinkCmd
 if ($LASTEXITCODE -eq 0) {
     Log-Info "Symlink already exists at $wslTarget. Skipping symlink creation."
 } else {
     # Create the symlink
-    Invoke-WSLCommand ln -s $wslMountPath $wslTarget
+    Invoke-WSLCommand "ln -s $wslMountPath $wslTarget"
     if ($LASTEXITCODE -ne 0) {
         Log-Error "Failed to link Windows repo into WSL. Exit code: $LASTEXITCODE"
         exit 1
