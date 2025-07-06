@@ -193,23 +193,52 @@ if (-not (wsl test -f $wslSudoConfigPath)) {
     Log-Info "Passwordless sudo already configured in WSL."
 }
 
+# ─────────────────────────────────────────────────────────────
+# SSH Host Key Fingerprinting Pre Trust (Security)
+# ─────────────────────────────────────────────────────────────
+Log-Info "Pre-trusting GitHub SSH host key fingerprint..."
+
+wsl bash -c "ssh-keyscan github.com >> ~/.ssh/known_hosts"
+if ($LASTEXITCODE -ne 0) {
+    Log-Error "Failed to pre-trust GitHub SSH host key. Exit code: $LASTEXITCODE"
+} else {
+    Log-Success "GitHub SSH host key fingerprint added to known_hosts."
+}
 
 # ─────────────────────────────────────────────────────────────
-# Ensure GitHub SSH key is imported in WSL via ssh-import-id
+# Ensure GitHub SSH key is imported in WSL via ssh-import-id skip if already imported
 # ─────────────────────────────────────────────────────────────
 $githubUsername = "thisisbramiller"
 
 Log-Info "Ensuring ssh-import-id is installed in WSL..."
-wsl sudo apt-get Update -y
-wsl sudo apt-get install -y ssh-import-id
 
-Log-Info "Importing SSH keys from GitHub user: $githubUsername"
+if (-not (wsl bash -c "command -v ssh-import-id")) {
+    Log-Info "ssh-import-id not found in WSL. Installing..."
+    wsl sudo apt-get update -y
+    wsl sudo apt-get install -y ssh-import-id
+    if ($LASTEXITCODE -ne 0) {
+        Log-Error "Failed to install ssh-import-id. Exit code: $LASTEXITCODE"
+        exit 1
+    }
+    Log-Success "ssh-import-id installed successfully in WSL."
+} else {
+    Log-Info "ssh-import-id is already installed in WSL."
+}
+
+# Import GitHub key in WSL if not already present
+Log-Info "Ensuring SSH keys are imported from GitHub user: $githubUsername"
 wsl ssh-import-id gh:$githubUsername
+if ($LASTEXITCODE -ne 0) {
+    Log-Error "Failed to import SSH keys for GitHub user: $githubUsername. Exit code: $LASTEXITCODE"
+    exit 1
+} else {
+    Log-Success "SSH keys ensured for GitHub user: $githubUsername (imported or already present)."
+}
 
 # ─────────────────────────────────────────────────────────────
 # Clone the FusionCloudX bootstrap repository inside WSL and launch bootstrap.sh
 # ─────────────────────────────────────────────────────────────
-$repoUrl = "https://github.com/FusionCloudX/fusioncloudx-bootstrap.git"
+$repoUrl = "git@github.com:FusionCloudX/fusioncloudx-bootstrap.git"
 $clonePath = "/home/$(wsl whoami)/fusioncloudx-bootstrap"
 
 if (-not (Test-Path -Path $clonePath)) {
