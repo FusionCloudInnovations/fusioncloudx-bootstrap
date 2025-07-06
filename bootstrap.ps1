@@ -52,23 +52,23 @@ function Install-AppWithWingetIfMissing {
 
     #Cache winget list once for performance
     if (-not $script:WingetCache) {
-        Write-Host "[INFO] Gathering list of winget packages..." -ForegroundColor Cyan
+        Log-Info "[INFO] Gathering list of winget packages..." -ForegroundColor Cyan
         $script:WingetCache = winget list
     }
 
     if ($script:WingetCache -match [regex]::Escape($WingetId)) {
-        Write-Host "[SKIP] $DisplayName is already installed." -ForegroundColor Yellow
+        Log-Warn "[SKIP] $DisplayName is already installed." -ForegroundColor Yellow
     } else {
-        Write-Host "[INFO] Installing $DisplayName..." -ForegroundColor Cyan
+        Log-Info "[INFO] Installing $DisplayName..." -ForegroundColor Cyan
         try {
             winget install --id $WingetId -e --silent --accept-source-agreements --accept-package-agreements
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "[ERROR] Failed to install $DisplayName. Winget returned exit code $LASTEXITCODE." -ForegroundColor Red
+                Log-Error "[ERROR] Failed to install $DisplayName. Winget returned exit code $LASTEXITCODE." -ForegroundColor Red
             } else {
-                Write-Host "[SUCCESS] $DisplayName installed successfully." -ForegroundColor Green
+                Log-Success "[SUCCESS] $DisplayName installed successfully." -ForegroundColor Green
             }
         } catch {
-            Write-Host "[ERROR] Failed to install $DisplayName : $_" -ForegroundColor Red
+            Log-Error "[ERROR] Failed to install $DisplayName : $_" -ForegroundColor Red
         }
     }
 }
