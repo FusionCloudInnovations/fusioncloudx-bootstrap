@@ -53,7 +53,12 @@ function Install-AppWithWingetIfMissing {
     #Cache winget list once for performance
     if (-not $script:WingetCache) {
         Log-Info "[INFO] Gathering list of winget packages..." -ForegroundColor Cyan
-        $script:WingetCache = winget list
+        try {
+            $script:WingetCache = winget list
+        } catch {
+            Log-Warn "Failed to get Winget cache. Falling back to direct install."
+            $script:WingetCache = ""
+        }
     }
 
     if ($script:WingetCache -match [regex]::Escape($WingetId)) {
