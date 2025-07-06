@@ -354,13 +354,33 @@ if ($LASTEXITCODE -eq 0) {
     }
 }
 
+# ─────────────────────────────────────────────────────────────
+# Execute Bootstrap Script Inside WSL
+# ─────────────────────────────────────────────────────────────
+Log-Info "Executing bootstrap.sh inside WSL..."
+
+$bootstrapScriptPath = "$wslTarget/bootstrap.sh"
+
+Invoke-WSLCommand "chmod +x '$bootstrapScriptPath'"
+Invoke-WSLCommand "'$bootstrapScriptPath'"
+
+if ($LASTEXITCODE -ne 0) {
+    Log-Error "Failed to execute bootstrap.sh inside WSL. Exit code: $LASTEXITCODE"
+    exit 1
+} else {
+    Log-Success "Bootstrap script executed successfully inside WSL."
+}
 
 # ─────────────────────────────────────────────────────────────
 # Teardown Custom Distro and Clean Up
 # ─────────────────────────────────────────────────────────────
-if ($wslEphemeral) {
+if ($wslEphemeral -and $LASTEXITCODE -eq 0) {
     Remove-CustomWSLDistro -DistroName $customDistroName
     Log-Info "Ephemeral mode active — clean teardown executed for $customDistroName."
+} elseif ($wslEphemeral -and $LASTEXITCODE -ne 0) {
+    Log-Warn "Ephemeral mode active, but teardown skipped due to bootstrap failure."
+} else {
+    Log-Info "Ephemeral mode not active. Skipping teardown."
 }
 # ─────────────────────────────────────────────────────────────
 # COMPLETE
