@@ -44,7 +44,7 @@ fi
 # Check if Ansible requirements file exists
 if [[ ! -f "ansible/requirements.yml" ]]; then
     log_info "[ANSIBLE] No requirements.yml found, skipping role installation."
-    exit 1
+    exit 0
 fi
 
 # Install Ansible roles if requirements file exists
