@@ -33,7 +33,7 @@ send_notification() {
             message="${message:-FusionCloudX Bootstrapping completed with warnings}"
             ;;
         *)
-            slack_color="#439FE0"
+            color="#439FE0"
             icon="ℹ️"
             log_error "[NOTIFY] Invalid status: $status. Must be one of: success, failure, warning."
             return 1
