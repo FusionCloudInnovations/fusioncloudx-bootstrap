@@ -19,7 +19,7 @@ fi
 # ─────────────────────────────────────────────────────────────
 # Check for required commands
 # ─────────────────────────────────────────────────────────────
-REQUIRED_COMMANDS=(curl git bash sed wget unzip)
+REQUIRED_COMMANDS=(apt apt-get bash curl git openssl sed unzip wget)
 for cmd in "${REQUIRED_COMMANDS[@]}"; do
     if ! command -v "$cmd" &> /dev/null; then
         log_warn "[PRECHECK] Required command '$cmd' is not installed."
@@ -45,6 +45,13 @@ if [[ "$(id -u)" -ne 0 ]]; then
     log_warn "[PRECHECK] Running as non-root user. Some operations may require elevated permissions."
 else
     log_success "[PRECHECK] Running with root permissions."
+fi
+
+# ─────────────────────────────────────────────────────────────
+# Clock Skew Check
+# ─────────────────────────────────────────────────────────────
+if ! date -u >/dev/null 2>&1; then
+    log_warn "[PRECHECK] Unable to verify system clock. This may affect SSL."
 fi
 
 # Simulate success
