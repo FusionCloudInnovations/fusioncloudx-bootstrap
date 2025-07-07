@@ -33,6 +33,11 @@ main() {
   echo
 
   for PHASE_NAME in "${PHASE_ORDER[@]}"; do
+    if phase_already_run "$PHASE_NAME"; then
+      log_info "[BOOTSTRAP] Skipping already completed phase: $PHASE_NAME"
+      continue
+    fi
+    
     PHASE_PATH="$PHASES_DIR/$PHASE_NAME/run.sh"
     log_info "[BOOTSTRAP] Starting phase: $PHASE_NAME"
 

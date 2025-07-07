@@ -21,6 +21,11 @@ mark_phase_as_run() {
     log_success "[STATE] Marked phase '$phase_name' as run"
 }
 
+phase_already_run() {
+    local phase_name="$1"
+    grep -Fxq "$phase_name" "$STATE_FILE"
+}
+
 on_exit() {
     local exit_code=$?
     if [[ $exit_code -ne 0 ]]; then
