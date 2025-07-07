@@ -57,3 +57,4 @@ else
 fi
 
 log_success "[TOOLS] All essential tools are ready."
+log_phase "[TOOLS] Essential tools installation completed" "complete"
