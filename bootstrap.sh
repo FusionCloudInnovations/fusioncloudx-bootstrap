@@ -60,11 +60,11 @@ main() {
 
   if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
     log_success "[FINAL] ✅ FusionCloudX Bootstrapping complete"
-    # send_notification "✅ FusionCloudX Bootstrapping complete"  # Optional
+    send_notification "✅ FusionCloudX Bootstrapping complete"  # Optional
     exit 0
   else
     log_error "[FINAL] ❌ FusionCloudX Bootstrapping did not complete successfully."
-    # send_notification "❌ FusionCloudX Bootstrapping failed"  # Optional
+    send_notification "❌ FusionCloudX Bootstrapping failed"  # Optional
     exit 1
   fi
 }

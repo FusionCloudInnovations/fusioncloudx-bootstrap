@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Load logging if not already sourced
 source modules/logging.sh
+source modules/notify.sh
 
 export STATE_FILE="state/ran_phases.txt"
 mkdir -p "$(dirname "$STATE_FILE")"
