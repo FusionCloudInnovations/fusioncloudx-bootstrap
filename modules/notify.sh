@@ -8,6 +8,7 @@ send_notification() {
     local hostname=$(hostname)
     local project_name="${PROJECT_NAME:-FusionCloudX Provisioning}"
     local timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    local slack_channel="${SLACK_CHANNEL:-#general}"
 
     # If no webhook, just log and return
     if [[ -z "$slack_webhook_url" ]]; then
@@ -15,15 +16,41 @@ send_notification() {
         return 0
     fi
 
+    case "$status" in
+        success)
+            color="good"
+            icon="✅"
+            message="${message:-FusionCloudX Bootstrapping completed successfully}"
+            ;;
+        error|fail|failed|failure)
+            color="danger"
+            icon="❌"           
+            message="${message:-FusionCloudX Bootstrapping failed}"
+            ;;
+        warning)
+            color="warning"
+            icon="⚠️"
+            message="${message:-FusionCloudX Bootstrapping completed with warnings}"
+            ;;
+        *)
+            slack_color="#439FE0"
+            icon="ℹ️"
+            log_error "[NOTIFY] Invalid status: $status. Must be one of: success, failure, warning."
+            return 1
+            ;;
+    esac
+
     # Prepare Slack payload
     local payload=$(cat <<EOF
 {
-  "text": "*$project_name* - Provisioning Status",
+  "text": "$icon *$project_name* - Provisioning Status",
+  "channel": "$slack_channel",
   "attachments": [
     {
       "fallback": "Provisioning status for $project_name",
-      "color": "$status",
+      "color": "$color",
       "title": "Provisioning Status for $project_name",
+      "pretext": "$message",
       "fields": [
         {
           "title": "Status",

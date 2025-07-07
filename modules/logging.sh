@@ -82,7 +82,7 @@ log_phase() {
       fi
       # Build the top and bottom lines
       local dashes
-      dashes=$(printf '%*s' $banner_width | tr ' ' '─')
+      dashes=$(printf '%*s' $banner_width | tr ' ' '-')
       log_info "╭${dashes}╮"
       # Pad content to banner_width
       local pad_total=$((banner_width - content_length))
