@@ -24,7 +24,7 @@ fi
 ntp_server="time.google.com"
 ntp_diff=$(ntpdate -q "$ntp_server" 2>/dev/null | awk '/offset/ {print $10}' || echo 0)
 
-if [[ $(echo "ntp_diff > 2" | bc) -eq 1 ]]; then
+if [[ $(echo "$ntp_diff > 2" | bc) -eq 1 ]]; then
     log_warn "[PRECHECK] Clock skew detected. Offset: ${ntp_diff}s vs $ntp_server"
 else
     log_success "[PRECHECK] Clock skew within acceptable range: ${ntp_diff}s"
