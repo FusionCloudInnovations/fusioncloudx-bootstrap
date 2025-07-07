@@ -3,7 +3,7 @@ set -euo pipefail
 
 source modules/logging.sh
 
-log_phase "[WSL INIT] Initializing WSL" "start"
+log_phase "[WSL INIT]" "start" "🐧" "Initializing WSL"
 
 if ! sudo -n true 2>/dev/null; then
     log_error "sudo is not available without password. Please configure passwordless sudo."

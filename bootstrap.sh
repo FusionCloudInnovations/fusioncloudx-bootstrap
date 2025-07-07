@@ -17,14 +17,9 @@ PHASE_ORDER=(
   # "06-fail-phase" # Simulated fail phase for testing
 )
 
-log_phase() {
-  log_info "╭───────────────────────────────────────────────╮"
-  log_info "│  🧱 FusionCloudX Bootstrap: Starting Phase... │"
-  log_info "╰───────────────────────────────────────────────╯"
-}
 
 main() {
-  log_phase
+  log_phase "Bootstrap" "start" "🧱" "FusionCloudX Bootstrap: Starting Phase..."
   log_success "[INIT] Bootstrap environment ready"
 
   log_info "[STATE] Initialized runtime state at $STATE_FILE"
@@ -59,11 +54,11 @@ main() {
 
   if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
     log_success "[FINAL] ✅ FusionCloudX Bootstrapping complete"
-    send_notification "✅ FusionCloudX Bootstrapping complete"  # Optional
+    send_notification "✅ FusionCloudX Bootstrapping complete" "success"
     exit 0
   else
     log_error "[FINAL] ❌ FusionCloudX Bootstrapping did not complete successfully."
-    send_notification "❌ FusionCloudX Bootstrapping failed"  # Optional
+    send_notification "❌ FusionCloudX Bootstrapping failed" "error"
     exit 1
   fi
 }

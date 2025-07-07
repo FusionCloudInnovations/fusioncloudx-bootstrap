@@ -3,7 +3,7 @@ set -euo pipefail
 
 source modules/logging.sh
 
-log_phase "[NETWORK CHECKS] Starting network checks" "start"
+log_phase "[NETWORK CHECKS]" "start" "🌐" "Starting network checks"
 fallback=false
 
 # Check if the internet is reachable
@@ -51,4 +51,4 @@ else
     exit 1
 fi
 
-log_phase "[NETWORK CHECKS] All network checks passed successfully" "complete"
+log_phase "03-network-checks" "complete" "🌐" "All network checks passed successfully"
