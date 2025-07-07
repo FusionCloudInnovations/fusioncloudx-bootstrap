@@ -35,7 +35,7 @@ send_notification() {
         *)
             color="#439FE0"
             icon="ℹ️"
-            log_error "[NOTIFY] Invalid status: $status. Must be one of: success, failure, warning."
+            log_error "[NOTIFY] Invalid status: $status. Must be one of: success, error, fail, failed, failure, warning."
             return 1
             ;;
     esac
