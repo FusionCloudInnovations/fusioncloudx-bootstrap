@@ -13,8 +13,7 @@ PHASE_ORDER=(
   "01-wsl-init"
   "02-tools"
   "03-network-checks"
-  "04-netboot"
-  "05-configure-hosts"
+  "04-ansible-provision"
   # "06-fail-phase" # Simulated fail phase for testing
 )
 
