@@ -92,7 +92,7 @@ log_phase() {
       log_info    "[BOOTSTRAP] Starting phase: $phase"
       ;;
     skip)     log_warn    "[BOOTSTRAP] Skipping already-run phase: $phase";;
-    complete) log_success "[BOOTSTRAP] $phase completed successfully.";;
+    complete) log_success "[BOOTSTRAP] $display_name completed successfully.";;
     fail)     log_error   "[BOOTSTRAP] $phase failed:";;
     *)        log_error   "[BOOTSTRAP] Phase $phase: status = $status";
   esac
