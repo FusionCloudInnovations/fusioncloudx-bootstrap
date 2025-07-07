@@ -7,6 +7,18 @@ source "$(dirname "$0")/../../modules/logging.sh"
 log_phase "[PRECHECK] Running pre-checks for FusionCloudX bootstrap..." "start"
 
 # ─────────────────────────────────────────────────────────────
+# Shell Validation (allow Bash or Zsh)
+# ─────────────────────────────────────────────────────────────
+current_shell="$(ps -p $$ -o comm= || echo unknown)"
+
+if [[ "$current_shell" == "bash" || "$current_shell" == "zsh" ]]; then
+    log_success "[PRECHECK] Running under supported shell: $current_shell"
+else
+    log_error "[PRECHECK] Unsupported shell: $current_shell. Please use bash or zsh."
+    exit 1
+fi
+
+# ─────────────────────────────────────────────────────────────
 # Check if running inside WSL
 # ─────────────────────────────────────────────────────────────
 if grep -qi microsoft /proc/version; then
