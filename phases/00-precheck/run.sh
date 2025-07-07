@@ -19,6 +19,18 @@ else
 fi
 
 # ─────────────────────────────────────────────────────────────
+# Clock Skew Check
+# ─────────────────────────────────────────────────────────────
+ntp_server="time.google.com"
+ntp_diff=$(ntpdate -q "$ntp_server" 2>/dev/null | awk '/offset/ {print $10}' || echo 0)
+
+if [[ $(echo "ntp_diff > 2" | bc) -eq 1 ]]; then
+    log_warn "[PRECHECK] Clock skew detected. Offset: ${ntp_diff}s vs $ntp_server"
+else
+    log_success "[PRECHECK] Clock skew within acceptable range: ${ntp_diff}s"
+fi
+
+# ─────────────────────────────────────────────────────────────
 # Check if running inside WSL
 # ─────────────────────────────────────────────────────────────
 if grep -qi microsoft /proc/version; then
@@ -59,12 +71,7 @@ else
     log_success "[PRECHECK] Running with root permissions."
 fi
 
-# ─────────────────────────────────────────────────────────────
-# Clock Skew Check
-# ─────────────────────────────────────────────────────────────
-if ! date -u >/dev/null 2>&1; then
-    log_warn "[PRECHECK] Unable to verify system clock. This may affect SSL."
-fi
+
 
 # Simulate success
 log_phase "00-precheck" complete
