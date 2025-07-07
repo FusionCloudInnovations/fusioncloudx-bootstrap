@@ -44,8 +44,8 @@ fi
 # Check if Ansible requirements file exists
 if [[ ! -f "ansible/requirements.yml" ]]; then
     log_info "[ANSIBLE] No requirements.yml found, skipping role installation."
+    exit 1
 fi
-
 
 # Install Ansible roles if requirements file exists
 if ansible-galaxy install -r ansible/requirements.yml; then
@@ -62,8 +62,8 @@ if [[ ! -f "ansible/playbook.yml" ]]; then
 fi
 
 # Run the Ansible playbook
+log_info "[ANSIBLE] Running playbook..."
 if ansible-playbook -i ansible/inventory.ini ansible/playbook.yml; then
-    log_info "[ANSIBLE] Running playbook..."
     log_success "[ANSIBLE] Ansible provisioning completed successfully."
 else
     log_error "[ANSIBLE] Ansible provisioning failed. Please check the output for errors."
