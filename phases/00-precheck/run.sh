@@ -6,6 +6,8 @@ source "$(dirname "$0")/../../modules/logging.sh"
 
 log_phase "[PRECHECK] Running pre-checks for FusionCloudX bootstrap..." "start"
 
+log_info "[PRECHECK] Detected OS: $(uname -s) | $(lsb_release -d 2>/dev/null || echo 'No lsb_release')"
+
 # ─────────────────────────────────────────────────────────────
 # Shell Validation (allow Bash or Zsh)
 # ─────────────────────────────────────────────────────────────
@@ -45,13 +47,21 @@ fi
 # Check for required commands
 # ─────────────────────────────────────────────────────────────
 REQUIRED_COMMANDS=(apt apt-get bash curl git openssl sed unzip wget)
+
+missing=()
+
 for cmd in "${REQUIRED_COMMANDS[@]}"; do
     if ! command -v "$cmd" &> /dev/null; then
         log_warn "[PRECHECK] Required command '$cmd' is not installed."
+        missing+=("$cmd")
     else
         log_success "[PRECHECK] Found required command: $cmd"
     fi
 done
+
+if (( ${#missing[@]} > 0 )); then
+    log_warn "[PRECHECK] Missing commands: ${missing[*]}"
+fi
 
 # ─────────────────────────────────────────────────────────────
 # Network connectivity check
