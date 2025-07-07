@@ -15,7 +15,7 @@ PHASE_ORDER=(
   "03-network-checks"
   "04-netboot"
   "05-configure-hosts"
-  "06-fail-phase" # Simulated fail phase for testing
+  # "06-fail-phase" # Simulated fail phase for testing
 )
 
 log_phase() {
@@ -33,6 +33,11 @@ main() {
   echo
 
   for PHASE_NAME in "${PHASE_ORDER[@]}"; do
+    if phase_already_run "$PHASE_NAME"; then
+      log_info "[BOOTSTRAP] Skipping already completed phase: $PHASE_NAME"
+      continue
+    fi
+    
     PHASE_PATH="$PHASES_DIR/$PHASE_NAME/run.sh"
     log_info "[BOOTSTRAP] Starting phase: $PHASE_NAME"
 
@@ -55,11 +60,11 @@ main() {
 
   if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
     log_success "[FINAL] ✅ FusionCloudX Bootstrapping complete"
-    # send_notification "✅ FusionCloudX Bootstrapping complete"  # Optional
+    send_notification "✅ FusionCloudX Bootstrapping complete"  # Optional
     exit 0
   else
     log_error "[FINAL] ❌ FusionCloudX Bootstrapping did not complete successfully."
-    # send_notification "❌ FusionCloudX Bootstrapping failed"  # Optional
+    send_notification "❌ FusionCloudX Bootstrapping failed"  # Optional
     exit 1
   fi
 }

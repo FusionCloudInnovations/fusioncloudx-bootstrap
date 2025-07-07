@@ -3,6 +3,7 @@ set -euo pipefail
 
 # Load logging if not already sourced
 source modules/logging.sh
+source modules/notify.sh
 
 export STATE_FILE="state/ran_phases.txt"
 mkdir -p "$(dirname "$STATE_FILE")"
@@ -17,8 +18,18 @@ mark_phase_as_run() {
         return 1
     fi
 
+    if phase_already_run "$phase_name"; then
+        log_info "[STATE] Phase '$phase_name' already marked as run"
+        return 0
+    fi
+
     echo "$phase_name" >> "$STATE_FILE"
     log_success "[STATE] Marked phase '$phase_name' as run"
+}
+
+phase_already_run() {
+    local phase_name="$1"
+    grep -Fxq "$phase_name" "$STATE_FILE"
 }
 
 on_exit() {
