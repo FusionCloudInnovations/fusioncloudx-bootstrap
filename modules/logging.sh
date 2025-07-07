@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+set -euo pipefail
 
 : "${SILENT:=0}"   # default to not silent
 : "${DEBUG:=0}"    # default to not verbose
