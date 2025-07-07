@@ -17,6 +17,11 @@ mark_phase_as_run() {
         return 1
     fi
 
+    if phase_already_run "$phase_name"; then
+        log_info "[STATE] Phase '$phase_name' already marked as run"
+        return 0
+    fi
+
     echo "$phase_name" >> "$STATE_FILE"
     log_success "[STATE] Marked phase '$phase_name' as run"
 }
