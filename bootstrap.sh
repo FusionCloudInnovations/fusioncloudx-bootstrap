@@ -15,7 +15,7 @@ PHASE_ORDER=(
   "03-network-checks"
   "04-netboot"
   "05-configure-hosts"
-  "06-fail-phase" # Simulated fail phase for testing
+  # "06-fail-phase" # Simulated fail phase for testing
 )
 
 log_phase() {
