@@ -3,7 +3,7 @@ set -euo pipefail
 
 source modules/logging.sh
 
-log_phase "[TOOLS] Beggining essential tools installation" "start"
+log_phase "[TOOLS] Beginning essential tools installation..." "start"
 
 # Refresh package index
 sudo apt-get update -y
@@ -11,6 +11,7 @@ sudo apt-get update -y
 # Base packages
 ESSENTIAL_PKGS=(
     curl
+    dnsutils
     git
     unzip
     jq
@@ -57,3 +58,4 @@ else
 fi
 
 log_success "[TOOLS] All essential tools are ready."
+log_phase "[TOOLS] Essential tools installation completed." "complete"
