@@ -3,7 +3,7 @@ set -euo pipefail
 
 source modules/logging.sh
 
-log_phase "[ANSIBLE] Starting Ansible provisioning" "start"
+log_phase "[ANSIBLE]" "start" "📦" "Starting Ansible provisioning"
 
 # Check if Ansible is installed
 if ! command -v ansible &>/dev/null; then
@@ -70,4 +70,4 @@ else
     exit 1
 fi
 
-log_phase "[ANSIBLE] Ansible provisioning completed" "complete"
+log_phase "04-ansible-provision" "complete" "📦" "Ansible provisioning completed"

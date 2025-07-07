@@ -4,7 +4,7 @@ set -euo pipefail
 # Source shared logging
 source "$(dirname "$0")/../../modules/logging.sh"
 
-log_phase "[PRECHECK] Running pre-checks for FusionCloudX bootstrap..." "start"
+log_phase "[PRECHECK]" "start" "🧪" "Running pre-checks for FusionCloudX bootstrap..."
 
 log_info "[PRECHECK] Detected OS: $(uname -s) | $(lsb_release -d 2>/dev/null || echo 'No lsb_release')"
 
@@ -83,5 +83,5 @@ else
 fi
 
 # Simulate success
-log_phase "00-precheck" complete
+log_phase "00-precheck" "complete" "🧪" "Pre-checks complete"
 exit 0

@@ -57,14 +57,40 @@ log_debug()   { [[ "$DEBUG" -eq 1 ]] && echo -e "${YELLOW}[DEBUG]${NC}   $1"; }
 log_phase() {
   local phase="$1"
   local status="$2"
+  local emoji="${3:-🧱}"
+  local display_name="${4:-$phase}"
 
   if [[ "DEBUG" -eq 1 && -z "$status" ]]; then
     log_error "[DEBUG] log_phase called without status argument for phase: $phase"
     return 1
   fi
-  
+
   case "$status" in
-    start)    log_info    "[BOOTSTRAP] Starting phase: $phase";;
+    start)
+      # Dynamically calculate banner width
+      local padding_left="  "
+      local padding_right=" "
+      local content="${padding_left}${emoji}  ${display_name}${padding_right}"
+      local min_width=47  # matches old banner width (number of dashes)
+      local content_length
+      # Use printf %b to handle emoji and escape sequences
+      content_length=$(printf "%s" "$content" | wc -m)
+      # If emoji is multi-byte, wc -m gives correct char count
+      local banner_width=$min_width
+      if (( content_length + 2 > min_width )); then
+        banner_width=$((content_length + 2))
+      fi
+      # Build the top and bottom lines
+      local dashes
+      dashes=$(printf '%*s' $banner_width | tr ' ' '─')
+      log_info "╭${dashes}╮"
+      # Pad content to banner_width
+      local pad_total=$((banner_width - content_length))
+      local pad_right=$(printf '%*s' $pad_total)
+      log_info "│${content}${pad_right}│"
+      log_info "╰${dashes}╯"
+      log_info    "[BOOTSTRAP] Starting phase: $phase"
+      ;;
     skip)     log_warn    "[BOOTSTRAP] Skipping already-run phase: $phase";;
     complete) log_success "[BOOTSTRAP] $phase completed successfully.";;
     fail)     log_error   "[BOOTSTRAP] $phase failed:";;
