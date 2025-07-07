@@ -11,6 +11,7 @@ sudo apt-get update -y
 # Base packages
 ESSENTIAL_PKGS=(
     curl
+    dnsutils
     git
     unzip
     jq

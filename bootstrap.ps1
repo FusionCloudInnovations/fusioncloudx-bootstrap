@@ -6,7 +6,7 @@
 
 $distroName = "Ubuntu"
 $customDistroName = "Ubuntu-FCX"
-$wslEphemeral = $false
+$wslEphemeral = $true
 
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
