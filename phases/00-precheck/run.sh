@@ -33,11 +33,12 @@ fi
 # ─────────────────────────────────────────────────────────────
 # Check if running inside WSL
 # ─────────────────────────────────────────────────────────────
-if grep -qi microsoft /proc/version; then
-    log_success "[PRECHECK] Running inside WSL"
+if grep -qEi "microsoft.*WSL2" /proc/version; then
+    log_success "[PRECHECK] Running under WSL2"
+elif grep -qEi "microsoft" /proc/version; then
+    log_warn "[PRECHECK] Detected WSL1. Compatibility may be limited."
 else
-    log_error "[PRECHECK] Not running inside WSL. Bootstrap requires WSL."
-    exit 1
+    log_info "[PRECHECK] Not running under WSL. Assuming native Linux or container."
 fi
 
 # ─────────────────────────────────────────────────────────────
@@ -70,8 +71,6 @@ if [[ "$(id -u)" -ne 0 ]]; then
 else
     log_success "[PRECHECK] Running with root permissions."
 fi
-
-
 
 # Simulate success
 log_phase "00-precheck" complete
