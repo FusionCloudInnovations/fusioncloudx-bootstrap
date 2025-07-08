@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Trap errors and notify completion
+trap 'PHASE_STATUS=$?; ./phases/99-notify-done/run.sh failure; exit $PHASE_STATUS' ERR
+
 # Load logging and other modules
 source modules/logging.sh
 source modules/state.sh
@@ -27,6 +30,11 @@ main() {
   echo
 
   for PHASE_NAME in "${PHASE_ORDER[@]}"; do
+    if [[ -f "state/stop_bootstrap" ]]; then
+      log_warn "[BOOTSTRAP] Stop marker detected. Halting further phase execution."
+      break
+    fi
+    
     if phase_already_run "$PHASE_NAME"; then
       log_info "[BOOTSTRAP] Skipping already completed phase: $PHASE_NAME"
       continue
@@ -51,6 +59,7 @@ main() {
   done
 
   echo
+
 
   if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
     log_success "[FINAL] ✅ FusionCloudX Bootstrapping complete"

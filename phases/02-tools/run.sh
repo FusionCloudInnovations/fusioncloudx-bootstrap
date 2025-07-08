@@ -31,7 +31,7 @@ done
 
 # Optional tools
 if ! command -v yq >/dev/null 2>&1; then
-    echo "[INFO] Installing yq from GitHub..."
+    log_info "[INFO] Installing yq from GitHub..."
     sudo curl -Lo /usr/local/bin/yq https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64
     sudo chmod +x /usr/local/bin/yq
 else
