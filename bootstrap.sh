@@ -16,8 +16,19 @@ PHASE_ORDER=(
   "01-wsl-init"
   "02-tools"
   "03-network-checks"
-  "04-ansible-provision"
-  # "06-fail-phase" # Simulated fail phase for testing
+  "04-cert-authority-bootstrap"
+  "05-ssh-key-bootstrap"
+  "06-image-restore"
+  "07-ipxe-netboot"
+  "08-terraform-init"
+  "09-terraform-apply"
+  "10-inventory-generate"
+  "11-ansible-provision"
+  "12-verify-nodes"
+  "13-import-certs-on-clients"
+  "14-app-bootstrap"
+  "15-backup-restore"
+  "99-notify"
 )
 
 
