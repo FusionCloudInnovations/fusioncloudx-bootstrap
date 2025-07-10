@@ -2,7 +2,9 @@
 set -euo pipefail
 
 source modules/logging.sh
-source .env
+source modules/notify.sh
+source modules/state.sh
+source modules/bootstrap_env.sh
 
 log_phase "[TOOLS]" "start" "🔧" "Beginning essential tools installation..."
 

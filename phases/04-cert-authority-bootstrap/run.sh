@@ -4,22 +4,10 @@ set -euo pipefail
 PHASE_NAME="04-cert-authority-bootstrap"
 PHASE_DESC="Starting Root CA and SSL generation"
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(cd "$SCRIPT_DIR/../../" && pwd)"
-
 source modules/logging.sh
 source modules/notify.sh
 source modules/state.sh
-
-# Load environment variables
-if [[ -f "$PROJECT_ROOT/.env" ]]; then
-    source "$PROJECT_ROOT/.env"
-    export OP_SERVICE_ACCOUNT_TOKEN
-    log_info "[ENV] Loaded environment from $PROJECT_ROOT/.env"
-else
-    log_warn "[ENV] .env file not found at $PROJECT_ROOT/.env"
-fi
-
+source modules/bootstrap_env.sh
 
 log_phase "$PHASE_NAME" "start" "🔑" "$PHASE_DESC"
 if ! command -v op &> /dev/null; then
