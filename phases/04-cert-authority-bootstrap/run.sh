@@ -7,6 +7,7 @@ PHASE_DESC="Starting Root CA and SSL generation"
 source modules/logging.sh
 source modules/notify.sh
 source modules/state.sh
+source modules/1password.sh
 source modules/bootstrap_env.sh
 
 log_phase "$PHASE_NAME" "start" "🔑" "$PHASE_DESC"
@@ -31,11 +32,7 @@ EXTFILE="$CERT_ROOT/extfile.cnf"
 
 # Check for existing certificates in 1Password vault
 # Check if the 1Password CLI is authenticated with Service Account
-if ! op account get --vault Services > /dev/null 2>&1; then
-    log_error "[CERT][1Password] Failed to access 'Services' vault. Token may be invalid, expired, or missing scope."
-else
-    log_info "[CERT][1Password] Service account already authenticated and 'Services' vault is accessible."
-fi
+check_op_vault_access "Services"
 
 VAULT_NAME="Services"
 CA_PASS_NAME="FusionCloudX Root CA Passphrase"

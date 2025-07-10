@@ -4,6 +4,7 @@ set -euo pipefail
 source modules/logging.sh
 source modules/notify.sh
 source modules/state.sh
+source modules/1password.sh
 source modules/bootstrap_env.sh
 
 log_phase "[TOOLS]" "start" "🔧" "Beginning essential tools installation..."
@@ -94,10 +95,7 @@ if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]]; then
 fi
 
 # Test 1Password connection
-if ! op vault get Services --format json > /dev/null 2>&1; then
-    log_error "[CERT][1Password] Failed to authenticate with OP_SERVICE_ACCOUNT_TOKEN. Check validity and vault access."
-    exit 1
-fi
+check_op_vault_access "Services"
 
 log_success "[TOOLS] All essential tools are ready."
 log_phase "02-tools" "complete" "🔧" "Essential tools installation completed."
