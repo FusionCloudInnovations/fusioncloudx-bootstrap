@@ -29,26 +29,12 @@ CERTS_DIR="$CERT_ROOT/issued"
 PRIVATE_DIR="$CERT_ROOT/private"
 EXTFILE="$CERT_ROOT/extfile.cnf"
 
-Check for existing certificates in 1Password vault
-Attempt login to 1Password if not already signed in
+# Check for existing certificates in 1Password vault
+# Check if the 1Password CLI is authenticated with Service Account
 if ! op account get --vault Services > /dev/null 2>&1; then
-    log_info "[CERT][1Password] Not signed in. Attempting login..."
-
-    # if [[ -z "${OP_EMAIL:-}" || -z "${OP_SECRET_KEY:-}" || -z "${OP_PASSWORD:-}" ]]; then
-    #     log_error "[CERT][1Password] Missing OP_EMAIL, OP_SECRET_KEY, or OP_PASSWORD env variables for headless signin."
-    #     exit 1
-    # fi
-
-    eval $(echo "$OP_PASSWORD" | op account add --email "$OP_EMAIL" --address "my.1password.com" --raw)
-
-    if [[ $? -ne 0 ]]; then
-        log_error "[CERT][1Password] Failed to sign in to 1Password CLI. Please check credentials or token."
-        exit 1
-    fi
-
-    log_success "[CERT][1Password] Successfully signed in to 1Password CLI (headless mode)."
+    log_error "[CERT][1Password] Failed to access 'Services' vault. Token may be invalid, expired, or missing scope."
 else
-    log_info "[CERT][1Password] Already signed in to 1Password."
+    log_info "[CERT][1Password] Service account already authenticated and 'Services' vault is accessible."
 fi
 
 VAULT_NAME="Services"
