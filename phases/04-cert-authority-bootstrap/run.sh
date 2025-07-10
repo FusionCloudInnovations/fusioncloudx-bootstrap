@@ -17,11 +17,6 @@ fi
 
 # Ensure 1Password CLI is logged in
 if ! op vault list --format json > /dev/null 2>&1; then
-    # log_error "[CERT][1Password] Logging into 1Password CLI..."
-    # if ! op signin --shorthand fusioncloudx; then
-    #     log_error "[CERT][1Password] Failed to sign in to 1Password CLI. Please check your credentials."
-    #     exit 1
-    # fi
     log_success "[CERT][1Password] Successfully logged in to 1Password CLI."
 else
     log_info "[CERT][1Password] Already logged in to 1Password CLI."
