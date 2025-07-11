@@ -133,23 +133,35 @@ else
         sudo cat "$CERT_KEY" "$INT_CA_CERT" "$ROOT_CA_CERT" | sudo tee "$FULLCHAIN_PEM" > /dev/null
         log_success "[CERT] Fullchain.pem created successfully: $FULLCHAIN_PEM"
     fi
+
+    # Set file permissions
+    log_info "[CERT] Setting file permissions..."
+    sudo chmod 644 "$ROOT_CA_CERT" "$INT_CA_CERT" "$CERT_PEM" "$FULLCHAIN_PEM" "$ROOT_CA_KEY" "$INT_CA_KEY" "$CERT_KEY"
+    log_success "[CERT] File permissions set successfully."
+
+    # Store CA and server certs in 1Password
+    if ! op item edit "$CA_ITEM_NAME" --vault "$VAULT_NAME" "Files.root-ca\.pem[file]=$ROOT_CA_CERT" "Files.root-ca-key\.pem[file]=$ROOT_CA_KEY"; then
+        log_error "[CERT][1Password] Failed to update Root CA item in 1Password."
+        exit 1
+    fi
+
+    if ! op item edit "$INT_CA_ITEM_NAME" --vault "$VAULT_NAME" "Files.intermediate-ca\.pem[file]=$INT_CA_CERT" \
+        "Files.intermediate-ca-key\.pem[file]=$INT_CA_KEY" \
+        "Files.server-cert\.pem[file]=$CERT_PEM" \
+        "Files.server-key\.pem[file]=$CERT_KEY" \
+        "Files.fullchain\.pem[file]=$FULLCHAIN_PEM" \
+        "Metadata.Subject CN=$($SUBJ)" \
+        "Metadata.SAN DNS=$SAN_DNS" \
+        "Metadata.SAN IP=$SAN_IP" \
+        "Metadata.Server Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)" \
+        "Metadata.CA Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"; then
+
+        log_error "[CERT][1Password] Failed to update Intermediate CA item in 1Password."
+        exit 1
+    fi
 fi
 
-#     # Upload new files to 1Password vault
-#     log_info "[CERT][1Password] Uploading new Root CA and key to 1Password vault..."
-#     CA_ITEM_ID=$(op item get "$CA_ITEM_NAME" --vault "$VAULT_NAME" --format json | jq -r '.id')
-#     if [[ -z "$CA_ITEM_ID" ]]; then
-#         log_info "[CERT][1Password] Creating new item for Root CA in 1Password vault..."
-#         CA_ITEM_ID=$(op document create --title "$CA_ITEM_NAME" --vault "$VAULT_NAME" --file "$ROOT_CA_CERT" --format json | jq -r '.id')
-#         CA_KEY_ITEM_ID=$(op document create --title "${CA_ITEM_NAME} Key" --vault "$VAULT_NAME" --file "$ROOT_CA_KEY" --format json | jq -r '.id')
-#     fi
-
-#     cat "$CERT_KEY" "$CERT_PEM" | sudo tee "$CERTS_DIR/fullchain.pem" > /dev/null
-
-# fi
-
-
-# log_success "[CERT] Server certificate signed successfully: $CERT_PEM"
+log_success "[CERT] Server certificate signed successfully: $CERT_PEM"
 
 # TODO: Add logic for Intermediate CA, fullchain generation, and distribution to UDM Pro, UNAS Pro, etc.
 # TODO: Export trusted certs to NFS for client installation (Windows/iOS/macOS)
