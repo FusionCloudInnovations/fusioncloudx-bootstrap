@@ -14,6 +14,7 @@ sudo apt-get update -y
 
 # Base packages
 ESSENTIAL_PKGS=(
+    apg
     curl
     dnsutils
     git
