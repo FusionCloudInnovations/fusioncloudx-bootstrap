@@ -150,7 +150,7 @@ else
         "Files.server-cert\.pem[file]=$CERT_PEM" \
         "Files.server-key\.pem[file]=$CERT_KEY" \
         "Files.fullchain\.pem[file]=$FULLCHAIN_PEM" \
-        "Metadata.Subject CN=$($SUBJ)" \
+        "Metadata.Subject CN=$SUBJ" \
         "Metadata.SAN DNS=$SAN_DNS" \
         "Metadata.SAN IP=$SAN_IP" \
         "Metadata.Server Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)" \
