@@ -2,12 +2,21 @@
 set -euo pipefail
 
 # Trap errors and notify completion
-trap 'PHASE_STATUS=$?; ./phases/99-notify-done/run.sh failure; exit $PHASE_STATUS' ERR
+# trap 'PHASE_STATUS=$?; ./phases/99-notify-done/run.sh failure; exit $PHASE_STATUS' ERR
 
 # Load logging and other modules
 source modules/logging.sh
 source modules/state.sh
 # Add other modules here if needed
+
+CLEAN_RUN="${CLEAN_RUN:-false}"  # Default to false if not set
+EPHEMERAL_MODE="${EPHEMERAL_MODE:-false}"  # Default to false if not set
+
+if [[ "$CLEAN_RUN" == "true" ]]; then
+  log_info "[STATE] Clean run mode enabled. Removing previous phase history..."
+  rm -f "$STATE_FILE"
+  log_success "[STATE] Previous state cleared for clean run."
+fi
 
 BOOTSTRAP_SUCCESS=1
 PHASES_DIR="phases"
@@ -17,18 +26,18 @@ PHASE_ORDER=(
   "02-tools"
   "03-network-checks"
   "04-cert-authority-bootstrap"
-  "05-ssh-key-bootstrap"
-  "06-image-restore"
-  "07-ipxe-netboot"
-  "08-terraform-init"
-  "09-terraform-apply"
-  "10-inventory-generate"
-  "11-ansible-provision"
-  "12-verify-nodes"
-  "13-import-certs-on-clients"
-  "14-app-bootstrap"
-  "15-backup-restore"
-  "99-notify"
+  # "05-ssh-key-bootstrap"
+  # "06-image-restore"
+  # "07-ipxe-netboot"
+  # "08-terraform-init"
+  # "09-terraform-apply"
+  # "10-inventory-generate"
+  # "11-ansible-provision"
+  # "12-verify-nodes"
+  # "13-import-certs-on-clients"
+  # "14-app-bootstrap"
+  # "15-backup-restore"
+  # "99-notify"
 )
 
 
@@ -74,11 +83,11 @@ main() {
 
   if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
     log_success "[FINAL] ✅ FusionCloudX Bootstrapping complete"
-    send_notification "✅ FusionCloudX Bootstrapping complete" "success"
+    # send_notification "✅ FusionCloudX Bootstrapping complete" "success"
     exit 0
   else
     log_error "[FINAL] ❌ FusionCloudX Bootstrapping did not complete successfully."
-    send_notification "❌ FusionCloudX Bootstrapping failed" "error"
+    # send_notification "❌ FusionCloudX Bootstrapping failed" "error"
     exit 1
   fi
 }
