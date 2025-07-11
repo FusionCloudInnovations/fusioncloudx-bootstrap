@@ -20,13 +20,16 @@ fi
 check_op_vault_access "Services"
 
 VAULT_NAME="Services"
-CA_PASS_NAME="FusionCloudX Root CA Passphrase"
-CA_ITEM_NAME="FusionCloudX Root CA Bundle"
+ORGANIZATION="FusionCloudX"
+CA_PASS_NAME="${ORGANIZATION} Root CA Passphrase"
+CA_ITEM_NAME="${ORGANIZATION} Root CA Bundle"
+INT_CA_ITEM_NAME="${ORGANIZATION} Intermediate CA Bundle"
 KEY_ITEM_NAME="${CA_ITEM_NAME} Key"
 
 # Define directories for storing certificates and keys
 CERT_ROOT="/etc/fusioncloudx/certs"
 CA_DIR="$CERT_ROOT/ca"
+INT_DIR="$CERT_ROOT/intermediate"
 CERTS_DIR="$CERT_ROOT/issued"
 PRIVATE_DIR="$CERT_ROOT/private"
 EXTFILE="$CERT_ROOT/extfile.cnf"
@@ -34,9 +37,12 @@ EXTFILE="$CERT_ROOT/extfile.cnf"
 # File paths for CA and server certificates
 ROOT_CA_CERT="$PRIVATE_DIR/root-ca.pem"
 ROOT_CA_KEY="$CA_DIR/root-ca-key.pem"
+INT_CA_CERT="$INT_DIR/intermediate-ca.pem"
+INT_CA_KEY="$INT_DIR/intermediate-ca-key.pem"
 CERT_KEY="$PRIVATE_DIR/cert-key.pem"
 CERT_CSR="$CERTS_DIR/cert.csr"
 CERT_PEM="$CERTS_DIR/cert.pem"
+FULLCHAIN="$CERTS_DIR/fullchain.pem"
 
 # Subject and SAN for the Root CA and server certificate
 SUBJ="/C=US/ST=State/L=City/O=FusionCloudX/OU=DevOps/CN=*.fusioncloudx.home"
@@ -44,7 +50,7 @@ SAN_DNS="DNS:fusioncloudx.home,DNS:*.fusioncloudx.home"
 SAN_IP="IP:192.168.40.49,IP:192.168.40.50"
 
 # Create required directories if they don't exist
-for dir in "$CA_DIR" "$CERTS_DIR" "$PRIVATE_DIR"; do
+for dir in "$CA_DIR" "$INT_DIR" "$CERTS_DIR" "$PRIVATE_DIR"; do
     if [[ ! -d "$dir" ]]; then
         log_info "[CERT] Creating directory: $dir"
         sudo mkdir -p "$dir"
@@ -58,7 +64,7 @@ else
     log_info "[CERT][1Password] No existing Root CA found in 1Password vault."
 
     # Generate a new Root CA passphrase and store it in 1Password
-    if CA_PASS_JSON=$(op item create "Root Certificate Authority.CA Passphrase[concealed]=$(apg -n 1 -m 32 -x 32 -M CLSN -c 1)" --vault "$VAULT_NAME" --template "templates/1password/ca-bundle-template.json" --format json); then
+    if CA_PASS_JSON=$(op item create "Certificate Authority.CA Passphrase[concealed]=$(apg -n 1 -m 32 -x 32 -M CLSN -c 1)" --vault "$VAULT_NAME" --template "templates/1password/ca-bundle-template.json" --format json); then
         CA_PASS=$(echo "$CA_PASS_JSON" | jq -r '.fields[] | select(.id=="password") | .value')
         log_info "[CERT][1Password] New Root CA passphrase generated and stored in 1Password."
     else
@@ -73,6 +79,28 @@ else
         sudo openssl req -x509 -sha256 -days 3650 -key "$ROOT_CA_KEY" -subj "$SUBJ" -out "$ROOT_CA_CERT" -passin pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")"
         log_success "[CERT] Root CA generated successfully: $ROOT_CA_CERT"
     fi
+
+    # Generate a new Intermediate CA passphrase and store it in 1Password
+    if INT_CA_PASS_JSON=$(op item create --title="FusionCloudX Intermediate CA Bundle" "Certificate Authority.CA Passphrase[concealed]=$(apg -n 1 -m 32 -x 32 -M CLSN -c 1)" --vault "$VAULT_NAME" --template "templates/1password/ca-bundle-template.json" --format json); then
+        INT_CA_PASS=$(echo "$INT_CA_PASS_JSON" | jq -r '.fields[] | select(.id=="password") | .value')
+        log_info "[CERT][1Password] New Intermediate CA passphrase generated and stored in 1Password."
+    else
+        log_error "[CERT][1Password] Failed to create Intermediate CA passphrase in 1Password."
+        exit 1
+    fi
+
+    # Generate Intermediate CA
+    if [[ ! -f "$INT_CA_KEY" || ! -f "$INT_CA_CERT" ]]; then
+        log_info "[CERT] Generating Intermediate CA..."
+        sudo openssl genrsa -aes256 -passout pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")" -out "$INT_CA_KEY" 4096
+        log_info "[CERT] Generating Intermediate CA CSR..."
+        sudo openssl req -new -sha256 -key "$INT_CA_KEY" -subj "$SUBJ" -out "$INT_DIR/intermediate-ca.csr" -passin pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")"
+        log_info "[CERT] Signing Intermediate CA with Root CA..."
+        sudo openssl x509 -req -sha256 -days 3650 -in "$INT_DIR/intermediate-ca.csr" -CA "$ROOT_CA_CERT" -CAkey "$ROOT_CA_KEY" -CAcreateserial -out "$INT_CA_CERT" --passin pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")"
+        log_info "[CERT] Intermediate CA signed successfully: $INT_CA_CERT"
+        log_success "[CERT] Intermediate CA generated successfully: $INT_CA_CERT"
+    fi
+
 fi
 
 
