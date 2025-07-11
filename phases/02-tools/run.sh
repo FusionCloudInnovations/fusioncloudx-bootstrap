@@ -90,9 +90,6 @@ fi
 rm -rf ~/.op
 unset OP_ACCOUNT # sometimes exists and interferes
 
-# (Removed redundant check for OP_SERVICE_ACCOUNT_TOKEN)
-fi
-
 # Test 1Password connection
 check_op_vault_access "Services"
 
