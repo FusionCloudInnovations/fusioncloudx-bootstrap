@@ -7,7 +7,7 @@
 $distroName = "Ubuntu"
 $customDistroName = "Ubuntu-FCX"
 $env:EPHEMERAL_MODE = $true
-$env:CLEAN_RUN = $false
+$env:CLEAN_RUN = $true
 
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
@@ -363,7 +363,7 @@ Log-Info "Executing bootstrap.sh inside WSL..."
 $bootstrapScriptPath = "$wslTarget/bootstrap.sh"
 
 Invoke-WSLCommand "chmod +x '$bootstrapScriptPath'"
-Invoke-WSLCommand "'$bootstrapScriptPath'"
+Invoke-WSLCommand "export CLEAN_RUN=$env:CLEAN_RUN && '$bootstrapScriptPath'"
 
 if ($LASTEXITCODE -ne 0) {
     Log-Error "Failed to execute bootstrap.sh inside WSL. Exit code: $LASTEXITCODE"

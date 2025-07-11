@@ -12,7 +12,7 @@ source modules/state.sh
 CLEAN_RUN="${CLEAN_RUN:-false}"  # Default to false if not set
 EPHEMERAL_MODE="${EPHEMERAL_MODE:-false}"  # Default to false if not set
 
-if [[ "$CLEAN_RUN" == "true" ]]; then
+if [[ "${CLEAN_RUN,,}" == "true" ]]; then
   log_info "[STATE] Clean run mode enabled. Removing previous phase history..."
   rm -f "$STATE_FILE"
   log_success "[STATE] Previous state cleared for clean run."
