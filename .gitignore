@@ -30,3 +30,9 @@ override.tf.json
 logs/*
 state/*
 .env
+
+# Ignore 1Password Filled Item Templates
+# These are used to fill in 1Password items with the correct fields and structure.
+# They are not meant to be committed as they contain sensitive information.
+# 1Password Item Templates
+templates/1password/*-filled.json
