@@ -6,7 +6,7 @@
 
 $distroName = "Ubuntu"
 $customDistroName = "Ubuntu-FCX"
-$env:EPHEMERAL_MODE = $false
+$env:EPHEMERAL_MODE = $true
 $env:CLEAN_RUN = $true
 
 # ─────────────────────────────────────────────────────────────
