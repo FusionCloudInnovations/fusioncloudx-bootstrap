@@ -6,7 +6,7 @@
 
 $distroName = "Ubuntu"
 $customDistroName = "Ubuntu-FCX"
-$env:EPHEMERAL_MODE = $true
+$env:EPHEMERAL_MODE = $false
 $env:CLEAN_RUN = $true
 
 # ─────────────────────────────────────────────────────────────
@@ -159,7 +159,7 @@ function Convert-ToWSLPath ($windowsPath) {
 
 Require-Admin
 Log-Info "🧱 FusionCloudX Windows Bootstrap starting..."
-if ($env:EPHEMERAL_MODE) {
+if ($env:EPHEMERAL_MODE -eq $true) {
     Log-Info "Ephemeral mode active. Custom WSL distro will be removed after setup."
 }
 
@@ -375,10 +375,10 @@ if ($LASTEXITCODE -ne 0) {
 # ─────────────────────────────────────────────────────────────
 # Teardown Custom Distro and Clean Up
 # ─────────────────────────────────────────────────────────────
-if ($env:EPHEMERAL_MODE -and $LASTEXITCODE -eq 0) {
+if ($env:EPHEMERAL_MODE -eq $true -and $LASTEXITCODE -eq 0) {
     Remove-CustomWSLDistro -DistroName $customDistroName
     Log-Info "Ephemeral mode active — clean teardown executed for $customDistroName."
-} elseif ($env:EPHEMERAL_MODE -and $LASTEXITCODE -ne 0) {
+} elseif ($env:EPHEMERAL_MODE -eq $true -and $LASTEXITCODE -ne 0) {
     Log-Warn "Ephemeral mode active, but teardown skipped due to bootstrap failure."
 } else {
     Log-Info "Ephemeral mode not active. Skipping teardown."
