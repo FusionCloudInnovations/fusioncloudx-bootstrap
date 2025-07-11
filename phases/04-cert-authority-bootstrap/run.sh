@@ -66,7 +66,7 @@ else
 
     # Generate a new Root CA passphrase and store it in 1Password
     if CA_PASS_JSON=$(op item create "Certificate Authority.CA Passphrase[concealed]=$(apg -n 1 -m 32 -x 32 -M CLSN -c 1)" --vault "$VAULT_NAME" --template "templates/1password/ca-bundle-template.json" --format json); then
-        CA_PASS=$(echo "$CA_PASS_JSON" | jq -r '.fields[] | select(.id=="password") | .value')
+        CA_PASS=$(echo "$CA_PASS_JSON" | jq -r '.fields[] | select(.id=="ca_passphrase") | .value')
         log_info "[CERT][1Password] New Root CA passphrase generated and stored in 1Password."
     else
         log_error "[CERT][1Password] Failed to create Root CA passphrase in 1Password."
