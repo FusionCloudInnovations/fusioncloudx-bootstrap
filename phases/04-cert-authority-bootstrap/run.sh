@@ -42,7 +42,7 @@ INT_CA_KEY="$INT_DIR/intermediate-ca-key.pem"
 CERT_KEY="$PRIVATE_DIR/cert-key.pem"
 CERT_CSR="$CERTS_DIR/cert.csr"
 CERT_PEM="$CERTS_DIR/cert.pem"
-FULLCHAIN="$CERTS_DIR/fullchain.pem"
+FULLCHAIN_PEM="$CERTS_DIR/fullchain.pem"
 
 # Subject and SAN for the Root CA and server certificate
 SUBJ="/C=US/ST=State/L=City/O=FusionCloudX/OU=DevOps/CN=*.fusioncloudx.home"
@@ -51,6 +51,7 @@ SAN_IP="IP:192.168.40.49,IP:192.168.40.50"
 
 # Create required directories if they don't exist
 for dir in "$CA_DIR" "$INT_DIR" "$CERTS_DIR" "$PRIVATE_DIR"; do
+    sudo rm -rf "$dir"
     if [[ ! -d "$dir" ]]; then
         log_info "[CERT] Creating directory: $dir"
         sudo mkdir -p "$dir"
@@ -78,6 +79,7 @@ else
         sudo openssl genrsa -aes256 -passout pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")" -out "$ROOT_CA_KEY" 4096
         sudo openssl req -x509 -sha256 -days 3650 -key "$ROOT_CA_KEY" -subj "$SUBJ" -out "$ROOT_CA_CERT" -passin pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")"
         log_success "[CERT] Root CA generated successfully: $ROOT_CA_CERT"
+        sleep 2
     fi
 
     # Generate a new Intermediate CA passphrase and store it in 1Password
@@ -96,11 +98,41 @@ else
         log_info "[CERT] Generating Intermediate CA CSR..."
         sudo openssl req -new -sha256 -key "$INT_CA_KEY" -subj "$SUBJ" -out "$INT_DIR/intermediate-ca.csr" -passin pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")"
         log_info "[CERT] Signing Intermediate CA with Root CA..."
-        sudo openssl x509 -req -sha256 -days 3650 -in "$INT_DIR/intermediate-ca.csr" -CA "$ROOT_CA_CERT" -CAkey "$ROOT_CA_KEY" -CAcreateserial -out "$INT_CA_CERT" --passin pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")"
+        sudo openssl x509 -req -sha256 -days 3650 -in "$INT_DIR/intermediate-ca.csr" -CA "$ROOT_CA_CERT" -CAkey "$ROOT_CA_KEY" -CAcreateserial -out "$INT_CA_CERT" --passin pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")"
         log_info "[CERT] Intermediate CA signed successfully: $INT_CA_CERT"
         log_success "[CERT] Intermediate CA generated successfully: $INT_CA_CERT"
     fi
 
+    # Generate server key and CSR
+    if [[ ! -f "$CERT_KEY" || ! -f "$CERT_CSR" ]]; then
+        log_info "[CERT] Generating server key and CSR..."
+        sudo openssl genrsa -out "$CERT_KEY" 4096
+        sudo openssl req -new -sha256 -key "$CERT_KEY" -subj "$SUBJ" -out "$CERT_CSR"
+        log_success "[CERT] Server key and CSR generated successfully."
+    fi
+
+    # Write extnensions file for SAN
+    if [[ ! -f "$EXTFILE" ]]; then
+        log_info "[CERT] Writing extensions file for SAN..."
+        echo "subjectAltName=$SAN_DNS,$SAN_IP" | sudo tee "$EXTFILE" > /dev/null
+        echo "extendedKeyUsage=serverAuth" | sudo tee -a "$EXTFILE" > /dev/null
+        log_success "[CERT] Extensions file written successfully: $EXTFILE"
+        sudo touch "$EXTFILE"
+    fi
+    
+    # Sign server cert with Intermediate CA
+    if [[ ! -f "$CERT_PEM" ]]; then
+        log_info "[CERT] Signing server certificate with Intermediate CA..."
+        sudo openssl x509 -req -sha256 -days 3650 -in "$CERT_CSR" -CA "$INT_CA_CERT" -CAkey "$INT_CA_KEY" -CAcreateserial -out "$CERT_PEM" -extfile "$EXTFILE" --passin pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")"
+        log_success "[CERT] Server certificate signed successfully: $CERT_PEM"
+    fi
+
+    # Build fullchain.pem
+    if [[ ! -f "$FULLCHAIN_PEM" ]]; then
+        log_info "[CERT] Building fullchain.pem..."
+        sudo cat "$CERT_KEY" "$INT_CA_CERT" "$ROOT_CA_CERT" | sudo tee "$FULLCHAIN_PEM" > /dev/null
+        log_success "[CERT] Fullchain.pem created successfully: $FULLCHAIN_PEM"
+    fi
 fi
 
 
