@@ -4,7 +4,7 @@
     "sections": [
         {
             "id": "ca_info",
-            "label": "Root Certificate Authority"
+            "label": "Certificate Authority"
         },
         {
             "id": "server_cert",
@@ -20,7 +20,7 @@
             "id": "ca_passphrase",
             "section": {
                 "id": "ca_info",
-                "label": "Root Certificate Authority"
+                "label": "Certificate Authority"
             },
             "type": "CONCEALED",
             "label": "CA Passphrase",
