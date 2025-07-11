@@ -43,17 +43,17 @@ SUBJ="/C=US/ST=State/L=City/O=FusionCloudX/OU=DevOps/CN=*.fusioncloudx.home"
 SAN_DNS="DNS:fusioncloudx.home,DNS:*.fusioncloudx.home"
 SAN_IP="IP:192.168.40.49,IP:192.168.40.50"
 
+# Create required directories if they don't exist
+for dir in "$CA_DIR" "$CERTS_DIR" "$PRIVATE_DIR"; do
+    if [[ ! -d "$dir" ]]; then
+        log_info "[CERT] Creating directory: $dir"
+        sudo mkdir -p "$dir"
+    fi
+done
 
 # Check for existing certificates in 1Password vault
 if CA_JSON=$(op item get "$CA_ITEM_NAME" --vault "$VAULT_NAME" --format json 2>/dev/null); then
     log_info "[CERT][1Password] Found existing Root CA in 1Password vault: $CA_ITEM_NAME"
-    # echo "$CA_JSON"
-    # CA_EXISTING=$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/README.md")
-    # echo "$CA_EXISTING"
-    # CA_PASS_EXISTING=$(echo "$CA_JSON" | jq -r '.fields[] | select(.id=="password") | .value')
-    # log_info "[CERT][1Password] Found existing Root CA in 1Password vault. echoing CA details..."
-    # echo "$CA_EXISTING" | base64 --decode >> "$ROOT_CA_CERT"
-    # log_info "[CERT][1Password] Root CA certificate restored from 1Password."
 else
     log_info "[CERT][1Password] No existing Root CA found in 1Password vault."
 
@@ -65,8 +65,15 @@ else
         log_error "[CERT][1Password] Failed to create Root CA passphrase in 1Password."
         exit 1
     fi
-fi
 
+    # Generate Root CA
+    if [[ ! -f "$ROOT_CA_KEY" || ! -f "$ROOT_CA_CERT" ]]; then
+        log_info "[CERT] Generating Root CA..."
+        sudo openssl genrsa -aes256 -passout pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")" -out "$ROOT_CA_KEY" 4096
+        sudo openssl req -x509 -sha256 -days 3650 -key "$ROOT_CA_KEY" -subj "$SUBJ" -out "$ROOT_CA_CERT" -passin pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")"
+        log_success "[CERT] Root CA generated successfully: $ROOT_CA_CERT"
+    fi
+fi
 
 
 # log_info "[CERT][1Password] Target vault for CA: $VAULT_NAME"
