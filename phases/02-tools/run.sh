@@ -90,9 +90,7 @@ fi
 rm -rf ~/.op
 unset OP_ACCOUNT # sometimes exists and interferes
 
-if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]]; then
-    log_error "[1Password] OP_SERVICE_ACCOUNT_TOKEN not found in environment"
-    exit 1
+# (Removed redundant check for OP_SERVICE_ACCOUNT_TOKEN)
 fi
 
 # Test 1Password connection
