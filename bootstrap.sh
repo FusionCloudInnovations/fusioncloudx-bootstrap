@@ -82,6 +82,8 @@ main() {
 
 
   if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
+    log_info "[CLEANUP] Running log rotation for logs directory..."
+    bash utils/log_rotate.sh --max-logs=10 --age-limit=30 || log_warn "[CLEANUP] Log rotation failed or skipped."
     log_success "[FINAL] ✅ FusionCloudX Bootstrapping complete"
     # send_notification "✅ FusionCloudX Bootstrapping complete" "success"
     exit 0
