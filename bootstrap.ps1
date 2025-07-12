@@ -332,7 +332,9 @@ if (-not (Invoke-WSLCommand "test -f $wslSudoConfigPath" -AllowFailure)) {
 # ─────────────────────────────────────────────────────────────
 Log-Info "Linking existing Windows repo into WSL..."
 
-$wslMountPath = "/mnt/f/Personal/Repositories/fusioncloudx-bootstrap"
+# Dynamically determine the Windows path to this repo and convert to WSL path
+$repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$wslMountPath = Convert-ToWSLPath $repoRoot
 $wslTarget = "/home/fcx/fusioncloudx-bootstrap"
 
 Invoke-WSLCommand "test -e $wslTarget" -AllowFailure
