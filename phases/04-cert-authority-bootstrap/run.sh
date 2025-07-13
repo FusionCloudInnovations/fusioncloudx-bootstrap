@@ -129,7 +129,7 @@ else
     # Build fullchain.pem
     if [[ ! -f "$FULLCHAIN_PEM" ]]; then
         log_info "[CERT] Building fullchain.pem..."
-        sudo cat "$CERT_KEY" "$INT_CA_CERT" "$ROOT_CA_CERT" | sudo tee "$FULLCHAIN_PEM" > /dev/null
+        sudo cat "$CERT_PEM" "$INT_CA_CERT" "$ROOT_CA_CERT" | sudo tee "$FULLCHAIN_PEM" > /dev/null
         log_success "[CERT] Fullchain.pem created successfully: $FULLCHAIN_PEM"
     fi
 
