@@ -283,6 +283,7 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
     }
 } else {
     Log-Info "WSL is already installed."
+    wsl --upgrade
     wsl --set-default-version 2
 }
 
