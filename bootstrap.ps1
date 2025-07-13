@@ -4,9 +4,20 @@
 # Description: This script sets up the FusionCloudX environment on a Windows machine. Initial PowerShell script to install necessary components and configure the system on fresh Windows 11.
 # Usage: Run this script as an administrator to ensure all components are installed correctly.
 
+
 # Centralized .env loading (only .env, not config/.env)
 if (Test-Path ".env") {
     Get-Content ".env" | ForEach-Object {
+        if ($_ -match "^(?<key>[^#=]+)=(?<value>.*)$") {
+            $key = $matches['key'].Trim()
+            $value = $matches['value'].Trim()
+            [System.Environment]::SetEnvironmentVariable($key, $value)
+        }
+    }
+}
+# Load secrets from .env.secrets if present
+if (Test-Path ".env.secrets") {
+    Get-Content ".env.secrets" | ForEach-Object {
         if ($_ -match "^(?<key>[^#=]+)=(?<value>.*)$") {
             $key = $matches['key'].Trim()
             $value = $matches['value'].Trim()

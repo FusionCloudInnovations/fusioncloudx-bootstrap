@@ -1,3 +1,5 @@
+# FusionCloudX Bootstrap secrets
+.env.secrets
 # Local .terraform directories
 **/.terraform/*
 
@@ -29,7 +31,6 @@ override.tf.json
 # example: *tfplan*
 logs/*
 state/*
-.env
 
 # Ignore 1Password Filled Item Templates
 # These are used to fill in 1Password items with the correct fields and structure.
