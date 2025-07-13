@@ -1,0 +1,28 @@
+# FusionCloudX Bootstrap main configuration (YAML)
+# This file contains all non-secret config for the application.
+# Edit as needed for your environment.
+
+wsl:
+  distro_name: Ubuntu
+  custom_distro_name: Ubuntu-FCX
+  ephemeral_mode: true
+  clean_run: true
+
+git:
+  user_name: Your Name
+  user_email: your@email.com
+
+windows_update:
+  enabled: true
+
+tools:
+  - name: Git
+    id: Git.Git
+  - name: Microsoft.WindowsTerminal
+    id: Microsoft.WindowsTerminal
+  - name: PowerShell_7_x64
+    id: Microsoft.PowerShell
+  - name: Canonical.Ubuntu
+    id: Canonical.Ubuntu
+  - name: 7-Zip
+    id: 7zip.7zip
