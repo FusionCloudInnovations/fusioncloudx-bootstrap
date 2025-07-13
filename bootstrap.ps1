@@ -5,36 +5,37 @@
 # Usage: Run this script as an administrator to ensure all components are installed correctly.
 
 
-# Centralized .env loading (only .env, not config/.env)
-if (Test-Path ".env") {
-    Get-Content ".env" | ForEach-Object {
-        if ($_ -match "^(?<key>[^#=]+)=(?<value>.*)$") {
-            $key = $matches['key'].Trim()
-            $value = $matches['value'].Trim()
-            [System.Environment]::SetEnvironmentVariable($key, $value)
-        }
-    }
+# Load config from YAML
+if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+    Install-Module -Name powershell-yaml -Force -Scope CurrentUser
 }
-# Load secrets from .env.secrets if present
-if (Test-Path ".env.secrets") {
-    Get-Content ".env.secrets" | ForEach-Object {
-        if ($_ -match "^(?<key>[^#=]+)=(?<value>.*)$") {
-            $key = $matches['key'].Trim()
-            $value = $matches['value'].Trim()
-            [System.Environment]::SetEnvironmentVariable($key, $value)
-        }
-    }
-}
+Import-Module powershell-yaml
 
-# Load all config from environment (set by .env)
-$distroName = $env:WSL_DISTRO_NAME
-if (-not $distroName) { $distroName = "Ubuntu" }
-$customDistroName = $env:WSL_CUSTOM_DISTRO_NAME
-if (-not $customDistroName) { $customDistroName = "Ubuntu-FCX" }
-$env:EPHEMERAL_MODE = $env:EPHEMERAL_MODE
-if (-not $env:EPHEMERAL_MODE) { $env:EPHEMERAL_MODE = $true }
-$env:CLEAN_RUN = $env:CLEAN_RUN
-if (-not $env:CLEAN_RUN) { $env:CLEAN_RUN = $true }
+$configFile = "config/bootstrap.yaml"
+if (-not (Test-Path $configFile)) {
+    Write-Error "Config file not found: $configFile"
+    exit 1
+}
+$config = ConvertFrom-Yaml (Get-Content $configFile -Raw)
+
+# Set config variables from YAML
+$distroName = $config.wsl.distro_name
+$customDistroName = $config.wsl.custom_distro_name
+$env:EPHEMERAL_MODE = $config.wsl.ephemeral_mode
+$env:CLEAN_RUN = $config.wsl.clean_run
+
+# Git config
+$gitUserName = $config.git.user_name
+$gitUserEmail = $config.git.user_email
+
+# Windows Update
+$updateNow = $config.windows_update.enabled
+
+# Tools
+$tools = @()
+foreach ($tool in $config.tools) {
+    $tools += @{ Name = $tool.name; Id = $tool.id }
+}
 
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
@@ -194,9 +195,6 @@ if ($env:EPHEMERAL_MODE -eq $true) {
 # ─────────────────────────────────────────────────────────────
 # Optional: Run Windows Update
 # ─────────────────────────────────────────────────────────────
-$updateNow = $env:WINDOWS_UPDATE_NOW
-if (-not $updateNow) { $updateNow = $true }
-
 if ($updateNow -eq $true -or $updateNow -eq "true") {
     Install-ModuleIfNeeded -moduleName "PSWindowsUpdate" -force:$true
     Import-Module PSWindowsUpdate
@@ -228,19 +226,10 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 # ─────────────────────────────────────────────────────────────
 # Install essential tools
 # ─────────────────────────────────────────────────────────────
-$tools = @(
-    @{ Name = "Git"; Id = "Git.Git"; },
-    @{ Name = "Microsoft.WindowsTerminal"; Id = "Microsoft.WindowsTerminal"; },
-    @{ Name = "PowerShell 7-x64 "; Id = "Microsoft.PowerShell"; },
-    @{ Name = "Canonical.Ubuntu"; Id = "Canonical.Ubuntu"; },
-    @{ Name = "7-Zip"; Id = "7zip.7zip"; }
-)
-
-Log-Info "Installing essential tools..."
+Log-Info "Installing essential tools from $configFile..."
 foreach ($tool in $tools) {
     Install-AppWithWingetIfMissing -WingetId $tool.Id -DisplayName $tool.Name
 }
-
 Log-Success "All essential tools installed successfully."
 
 # ─────────────────────────────────────────────────────────────
@@ -249,11 +238,9 @@ Log-Success "All essential tools installed successfully."
 
 
 
-# Git config from environment
-$gitUserName = $env:GIT_USER_NAME
-$gitUserEmail = $env:GIT_USER_EMAIL
+# Git config from YAML
 if (-not $gitUserName -or -not $gitUserEmail) {
-    Log-Error "GIT_USER_NAME and GIT_USER_EMAIL must be set in .env for automated Git configuration."
+    Log-Error "git.user_name and git.user_email must be set in config/bootstrap.yaml for automated Git configuration."
     exit 1
 }
 $gitConfig = @{
