@@ -165,8 +165,8 @@ else
         "${COMMON_METADATA[@]}"; then
 
         log_error "[CERT][1Password] Failed to update Intermediate CA item in 1Password."
-        exit 1
         log_success "[CERT] Server certificate signed successfully: $CERT_PEM"
+        exit 1
     fi
 fi
 
