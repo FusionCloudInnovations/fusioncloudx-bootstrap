@@ -4,10 +4,26 @@
 # Description: This script sets up the FusionCloudX environment on a Windows machine. Initial PowerShell script to install necessary components and configure the system on fresh Windows 11.
 # Usage: Run this script as an administrator to ensure all components are installed correctly.
 
-$distroName = "Ubuntu"
-$customDistroName = "Ubuntu-FCX"
-$env:EPHEMERAL_MODE = $true
-$env:CLEAN_RUN = $true
+# Centralized .env loading (only .env, not config/.env)
+if (Test-Path ".env") {
+    Get-Content ".env" | ForEach-Object {
+        if ($_ -match "^(?<key>[^#=]+)=(?<value>.*)$") {
+            $key = $matches['key'].Trim()
+            $value = $matches['value'].Trim()
+            [System.Environment]::SetEnvironmentVariable($key, $value)
+        }
+    }
+}
+
+# Load all config from environment (set by .env)
+$distroName = $env:WSL_DISTRO_NAME
+if (-not $distroName) { $distroName = "Ubuntu" }
+$customDistroName = $env:WSL_CUSTOM_DISTRO_NAME
+if (-not $customDistroName) { $customDistroName = "Ubuntu-FCX" }
+$env:EPHEMERAL_MODE = $env:EPHEMERAL_MODE
+if (-not $env:EPHEMERAL_MODE) { $env:EPHEMERAL_MODE = $true }
+$env:CLEAN_RUN = $env:CLEAN_RUN
+if (-not $env:CLEAN_RUN) { $env:CLEAN_RUN = $true }
 
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
@@ -167,9 +183,10 @@ if ($env:EPHEMERAL_MODE -eq $true) {
 # ─────────────────────────────────────────────────────────────
 # Optional: Run Windows Update
 # ─────────────────────────────────────────────────────────────
-$updateNow = $true
+$updateNow = $env:WINDOWS_UPDATE_NOW
+if (-not $updateNow) { $updateNow = $true }
 
-if ($updateNow) {
+if ($updateNow -eq $true -or $updateNow -eq "true") {
     Install-ModuleIfNeeded -moduleName "PSWindowsUpdate" -force:$true
     Import-Module PSWindowsUpdate
     Log-Info "Checking for Windows updates..."
@@ -218,9 +235,19 @@ Log-Success "All essential tools installed successfully."
 # ─────────────────────────────────────────────────────────────
 # Confgure Git
 # ─────────────────────────────────────────────────────────────
+
+
+
+# Git config from environment
+$gitUserName = $env:GIT_USER_NAME
+$gitUserEmail = $env:GIT_USER_EMAIL
+if (-not $gitUserName -or -not $gitUserEmail) {
+    Log-Error "GIT_USER_NAME and GIT_USER_EMAIL must be set in .env for automated Git configuration."
+    exit 1
+}
 $gitConfig = @{
-    "user.name" = "Branden Miller"
-    "user.email" = "76793954+thisisbramiller@users.noreply.github.com"
+    "user.name" = $gitUserName
+    "user.email" = $gitUserEmail
     "core.editor" = "code --wait"
 }
 
