@@ -392,7 +392,7 @@ Log-Info "Executing bootstrap.sh inside WSL..."
 $bootstrapScriptPath = "$wslTarget/bootstrap.sh"
 
 Invoke-WSLCommand "chmod +x '$bootstrapScriptPath'"
-Invoke-WSLCommand "export CLEAN_RUN=$env:CLEAN_RUN && '$bootstrapScriptPath'"
+Invoke-WSLCommand "export CLEAN_RUN=$env:CLEAN_RUN EPHEMERAL_MODE=$env:EPHEMERAL_MODE && '$bootstrapScriptPath'"
 
 if ($LASTEXITCODE -ne 0) {
     Log-Error "Failed to execute bootstrap.sh inside WSL. Exit code: $LASTEXITCODE"
