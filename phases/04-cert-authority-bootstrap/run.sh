@@ -51,7 +51,6 @@ SAN_IP="IP:192.168.40.49,IP:192.168.40.50"
 
 # Create required directories if they don't exist
 for dir in "$CA_DIR" "$INT_DIR" "$CERTS_DIR" "$PRIVATE_DIR"; do
-    sudo rm -rf "$dir"
     if [[ ! -d "$dir" ]]; then
         log_info "[CERT] Creating directory: $dir"
         sudo mkdir -p "$dir"
