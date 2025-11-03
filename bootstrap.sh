@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Trap errors and notify completion
-# trap 'PHASE_STATUS=$?; ./phases/99-notify-done/run.sh failure; exit $PHASE_STATUS' ERR
+trap 'PHASE_STATUS=$?; ./phases/99-notify-done/run.sh failure; exit $PHASE_STATUS' ERR
 
 # Load logging and other modules
 source modules/logging.sh
