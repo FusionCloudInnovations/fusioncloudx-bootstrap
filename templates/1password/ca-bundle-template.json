@@ -1,0 +1,75 @@
+{
+    "title": "FusionCloudX Root CA Bundle",
+    "category": "SERVER",
+    "sections": [
+        {
+            "id": "ca_info",
+            "label": "Certificate Authority"
+        },
+        {
+            "id": "server_cert",
+            "label": "Server Certificates"
+        },
+        {
+            "id": "meta",
+            "label": "Metadata"
+        }
+    ],
+    "fields": [
+        {
+            "id": "ca_passphrase",
+            "section": {
+                "id": "ca_info",
+                "label": "Certificate Authority"
+            },
+            "type": "CONCEALED",
+            "label": "CA Passphrase",
+            "value": ""
+        },
+        {
+            "id": "subject_cn",
+            "section": {
+                "id": "meta"
+            },
+            "type": "STRING",
+            "label": "Subject CN",
+            "value": "${SUBJECT_CN}"
+        },
+        {
+            "id": "san_dns",
+            "section": {
+                "id": "meta"
+            },
+            "type": "STRING",
+            "label": "SAN DNS",
+            "value": "${SAN_DNS}"
+        },
+        {
+            "id": "san_ip",
+            "section": {
+                "id": "meta"
+            },
+            "type": "STRING",
+            "label": "SAN IP",
+            "value": "${SAN_IP}"
+        },
+        {
+            "id": "cert_expiry",
+            "section": {
+                "id": "meta"
+            },
+            "type": "DATE",
+            "label": "Server Cert Expiry",
+            "value": "2026-01-01"
+        },
+        {
+            "id": "ca_expiry",
+            "section": {
+                "id": "meta"
+            },
+            "type": "DATE",
+            "label": "CA Cert Expiry",
+            "value": "2026-01-01"
+        }
+    ]
+}

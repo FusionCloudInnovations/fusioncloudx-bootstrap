@@ -4,9 +4,38 @@
 # Description: This script sets up the FusionCloudX environment on a Windows machine. Initial PowerShell script to install necessary components and configure the system on fresh Windows 11.
 # Usage: Run this script as an administrator to ensure all components are installed correctly.
 
-$distroName = "Ubuntu"
-$customDistroName = "Ubuntu-FCX"
-$wslEphemeral = $true
+
+# Load config from YAML
+if (-not (Get-Module -ListAvailable -Name powershell-yaml)) {
+    Install-Module -Name powershell-yaml -Force -Scope CurrentUser
+}
+Import-Module powershell-yaml
+
+$configFile = "config/bootstrap.yaml"
+if (-not (Test-Path $configFile)) {
+    Write-Error "Config file not found: $configFile"
+    exit 1
+}
+$config = ConvertFrom-Yaml (Get-Content $configFile -Raw)
+
+# Set config variables from YAML
+$distroName = $config.wsl.distro_name
+$customDistroName = $config.wsl.custom_distro_name
+$env:EPHEMERAL_MODE = $config.wsl.ephemeral_mode
+$env:CLEAN_RUN = $config.wsl.clean_run
+
+# Git config
+$gitUserName = $config.git.user_name
+$gitUserEmail = $config.git.user_email
+
+# Windows Update
+$updateNow = $config.windows_update.enabled
+
+# Tools
+$tools = @()
+foreach ($tool in $config.tools) {
+    $tools += @{ Name = $tool.name; Id = $tool.id }
+}
 
 # ─────────────────────────────────────────────────────────────
 # FUNCTIONS
@@ -158,7 +187,7 @@ function Convert-ToWSLPath ($windowsPath) {
 
 Require-Admin
 Log-Info "🧱 FusionCloudX Windows Bootstrap starting..."
-if ($wslEphemeral) {
+if ($env:EPHEMERAL_MODE -eq $true) {
     Log-Info "Ephemeral mode active. Custom WSL distro will be removed after setup."
 }
 
@@ -166,9 +195,7 @@ if ($wslEphemeral) {
 # ─────────────────────────────────────────────────────────────
 # Optional: Run Windows Update
 # ─────────────────────────────────────────────────────────────
-$updateNow = $true
-
-if ($updateNow) {
+if ($updateNow -eq $true -or $updateNow -eq "true") {
     Install-ModuleIfNeeded -moduleName "PSWindowsUpdate" -force:$true
     Import-Module PSWindowsUpdate
     Log-Info "Checking for Windows updates..."
@@ -199,27 +226,26 @@ if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
 # ─────────────────────────────────────────────────────────────
 # Install essential tools
 # ─────────────────────────────────────────────────────────────
-$tools = @(
-    @{ Name = "Git"; Id = "Git.Git"; },
-    @{ Name = "Microsoft.WindowsTerminal"; Id = "Microsoft.WindowsTerminal"; },
-    @{ Name = "PowerShell 7-x64 "; Id = "Microsoft.PowerShell"; },
-    @{ Name = "Canonical.Ubuntu"; Id = "Canonical.Ubuntu"; },
-    @{ Name = "7-Zip"; Id = "7zip.7zip"; }
-)
-
-Log-Info "Installing essential tools..."
+Log-Info "Installing essential tools from $configFile..."
 foreach ($tool in $tools) {
     Install-AppWithWingetIfMissing -WingetId $tool.Id -DisplayName $tool.Name
 }
-
 Log-Success "All essential tools installed successfully."
 
 # ─────────────────────────────────────────────────────────────
 # Confgure Git
 # ─────────────────────────────────────────────────────────────
+
+
+
+# Git config from YAML
+if (-not $gitUserName -or -not $gitUserEmail) {
+    Log-Error "git.user_name and git.user_email must be set in config/bootstrap.yaml for automated Git configuration."
+    exit 1
+}
 $gitConfig = @{
-    "user.name" = "Branden Miller"
-    "user.email" = "76793954+thisisbramiller@users.noreply.github.com"
+    "user.name" = $gitUserName
+    "user.email" = $gitUserEmail
     "core.editor" = "code --wait"
 }
 
@@ -244,6 +270,8 @@ if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
     }
 } else {
     Log-Info "WSL is already installed."
+    wsl --update
+    wsl --set-default-version 2
 }
 
 # ─────────────────────────────────────────────────────────────
@@ -331,7 +359,9 @@ if (-not (Invoke-WSLCommand "test -f $wslSudoConfigPath" -AllowFailure)) {
 # ─────────────────────────────────────────────────────────────
 Log-Info "Linking existing Windows repo into WSL..."
 
-$wslMountPath = "/mnt/f/Personal/Repositories/fusioncloudx-bootstrap"
+# Dynamically determine the Windows path to this repo and convert to WSL path
+$repoRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+$wslMountPath = Convert-ToWSLPath $repoRoot
 $wslTarget = "/home/fcx/fusioncloudx-bootstrap"
 
 Invoke-WSLCommand "test -e $wslTarget" -AllowFailure
@@ -374,10 +404,10 @@ if ($LASTEXITCODE -ne 0) {
 # ─────────────────────────────────────────────────────────────
 # Teardown Custom Distro and Clean Up
 # ─────────────────────────────────────────────────────────────
-if ($wslEphemeral -and $LASTEXITCODE -eq 0) {
+if ($env:EPHEMERAL_MODE -eq $true -and $LASTEXITCODE -eq 0) {
     Remove-CustomWSLDistro -DistroName $customDistroName
     Log-Info "Ephemeral mode active — clean teardown executed for $customDistroName."
-} elseif ($wslEphemeral -and $LASTEXITCODE -ne 0) {
+} elseif ($env:EPHEMERAL_MODE -eq $true -and $LASTEXITCODE -ne 0) {
     Log-Warn "Ephemeral mode active, but teardown skipped due to bootstrap failure."
 } else {
     Log-Info "Ephemeral mode not active. Skipping teardown."

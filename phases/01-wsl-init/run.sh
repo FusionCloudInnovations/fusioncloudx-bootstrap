@@ -25,12 +25,3 @@ else
 fi
 
 
-# Write initial env config if not exists
-ENV_FILE="$HOME/.fusion_env"
-if [[ ! -f "$ENV_FILE" ]]; then
-    echo "FUSION_STAGE=bootstrap" > "$ENV_FILE"
-    echo "OS_CONTEXT=wsl2-ubuntu" >> "$ENV_FILE"
-    log_success "Initialized fusion environment config at $ENV_FILE"
-fi
-
-source "$ENV_FILE"

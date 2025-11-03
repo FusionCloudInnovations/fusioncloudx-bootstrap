@@ -2,6 +2,9 @@
 set -euo pipefail
 
 source modules/logging.sh
+source modules/notify.sh
+source modules/state.sh
+source modules/1password.sh
 
 log_phase "[TOOLS]" "start" "🔧" "Beginning essential tools installation..."
 
@@ -10,6 +13,7 @@ sudo apt-get update -y
 
 # Base packages
 ESSENTIAL_PKGS=(
+    apg
     curl
     dnsutils
     git
@@ -56,6 +60,37 @@ if ! command -v ansible &>/dev/null; then
 else
   log_info "[TOOLS] Ansible already installed."
 fi
+
+# Ensure OP_SERVICE_ACCOUNT_TOKEN is set
+if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]]; then
+    log_error "[TOOLS][1Password] OP_SERVICE_ACCOUNT_TOKEN is not set. Cannot authenticate service account."
+    exit 1
+fi
+
+# 1Password CLI
+if ! command -v op &>/dev/null; then
+    log_info "[TOOLS] Installing 1Password CLI..."
+    curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+    sudo gpg --dearmor --output /usr/share/keyrings/1password-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | \
+    sudo tee /etc/apt/sources.list.d/1password.list && \
+    sudo mkdir -p /etc/debsig/policies/AC2D62742012EA22/ && \
+    curl -sS https://downloads.1password.com/linux/debian/debsig/1password.pol | \
+    sudo tee /etc/debsig/policies/AC2D62742012EA22/1password.pol && \
+    sudo mkdir -p /usr/share/debsig/keyrings/AC2D62742012EA22 && \
+    curl -sS https://downloads.1password.com/linux/keys/1password.asc | \
+    sudo gpg --dearmor --output /usr/share/debsig/keyrings/AC2D62742012EA22/debsig.gpg && \
+    sudo apt update && sudo apt install 1password-cli
+else
+    log_info "[TOOLS] 1Password CLI already installed."
+fi
+
+# Force op into service account mode by clearing any old session state
+rm -rf ~/.op
+unset OP_ACCOUNT # sometimes exists and interferes
+
+# Test 1Password connection
+check_op_vault_access "Services"
 
 log_success "[TOOLS] All essential tools are ready."
 log_phase "02-tools" "complete" "🔧" "Essential tools installation completed."
