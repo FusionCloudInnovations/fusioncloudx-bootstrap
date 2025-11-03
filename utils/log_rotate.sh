@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+source modules/logging.sh
 
 # 🔁 Log Rotater - FusionCloud X
 # Removes old bootstrap logs beyond the rentention policy

@@ -2,7 +2,7 @@ wsl:
   distro_name: Ubuntu
   custom_distro_name: Ubuntu-FCX
   ephemeral_mode: true
-  clean_run: false
+  clean_run: true
 
 git:
   user_name: Your Name
