@@ -3,7 +3,7 @@ set -euo pipefail
 source modules/logging.sh
 
 # 🔁 Log Rotater - FusionCloud X
-# Removes old bootstrap logs beyond the rentention policy
+# Removes old bootstrap logs beyond the retention policy
 
 MAX_LOGS=10
 AGE_LIMIT_DAYS=30
