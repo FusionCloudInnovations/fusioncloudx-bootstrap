@@ -5,7 +5,7 @@ set -euo pipefail
 source modules/logging.sh
 source modules/notify.sh
 
-export STATE_FILE="state/ran_phases.txt"
+STATE_FILE="state/ran_phases.txt"
 mkdir -p "$(dirname "$STATE_FILE")"
 touch "$STATE_FILE"
 log_info "[STATE] Initialized runtime state at $STATE_FILE"

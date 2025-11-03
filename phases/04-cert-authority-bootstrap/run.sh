@@ -8,7 +8,6 @@ source modules/logging.sh
 source modules/notify.sh
 source modules/state.sh
 source modules/1password.sh
-source modules/bootstrap_env.sh
 
 log_phase "$PHASE_NAME" "start" "🔑" "$PHASE_DESC"
 if ! command -v op &> /dev/null; then

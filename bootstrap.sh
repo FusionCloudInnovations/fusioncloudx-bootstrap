@@ -9,36 +9,47 @@ source modules/logging.sh
 source modules/state.sh
 # Add other modules here if needed
 
-CLEAN_RUN="${CLEAN_RUN:-false}"  # Default to false if not set
-EPHEMERAL_MODE="${EPHEMERAL_MODE:-false}"  # Default to false if not set
-
-if [[ "${CLEAN_RUN,,}" == "true" ]]; then
-  log_info "[STATE] Clean run mode enabled. Removing previous phase history..."
-  rm -f "$STATE_FILE"
-  log_success "[STATE] Previous state cleared for clean run."
+# Always run 00-precheck first, before any config/yq logic
+PHASES_DIR="phases"
+if [[ -x "$PHASES_DIR/00-precheck/run.sh" ]]; then
+  bash "$PHASES_DIR/00-precheck/run.sh"
+  source modules/bootstrap_env.sh
+else
+  echo "[BOOTSTRAP] 00-precheck phase script not found or not executable: $PHASES_DIR/00-precheck/run.sh" >&2
+  exit 1
 fi
 
-BOOTSTRAP_SUCCESS=1
+
+
+# Load phase order from env vars if present, else fallback to default (excluding 00-precheck)
+if [[ -n "${PHASES[*]:-}" ]]; then
+  # PHASES env var is a space-separated list from YAML
+  read -ra PHASE_ORDER <<< "${PHASES}"
+  # Remove 00-precheck if present
+  PHASE_ORDER=( "${PHASE_ORDER[@]//00-precheck}" )
+else
+  PHASE_ORDER=(
+    "01-wsl-init"
+    "02-tools"
+    "03-network-checks"
+    "04-cert-authority-bootstrap"
+    # "05-ssh-key-bootstrap"
+    # "06-image-restore"
+    # "07-ipxe-netboot"
+    # "08-terraform-init"
+    # "09-terraform-apply"
+    # "10-inventory-generate"
+    # "11-ansible-provision"
+    # "12-verify-nodes"
+    # "13-import-certs-on-clients"
+    # "14-app-bootstrap"
+    # "15-backup-restore"
+    # "99-notify"
+  )
+fi
+
 PHASES_DIR="phases"
-PHASE_ORDER=(
-  "00-precheck"
-  "01-wsl-init"
-  "02-tools"
-  "03-network-checks"
-  "04-cert-authority-bootstrap"
-  # "05-ssh-key-bootstrap"
-  # "06-image-restore"
-  # "07-ipxe-netboot"
-  # "08-terraform-init"
-  # "09-terraform-apply"
-  # "10-inventory-generate"
-  # "11-ansible-provision"
-  # "12-verify-nodes"
-  # "13-import-certs-on-clients"
-  # "14-app-bootstrap"
-  # "15-backup-restore"
-  # "99-notify"
-)
+BOOTSTRAP_SUCCESS=1
 
 
 main() {
@@ -49,26 +60,29 @@ main() {
   log_info "[BOOTSTRAP] Modules loaded, beginning bootstrap sequence..."
   echo
 
+
+  if [[ "${WSL_CLEAN_RUN,,}" == "true" ]]; then
+    log_info "[STATE] Clean run mode enabled. Removing previous phase history..."
+    rm -f "$STATE_FILE"
+    log_success "[STATE] Previous state cleared for clean run."
+  fi
+
   for PHASE_NAME in "${PHASE_ORDER[@]}"; do
     if [[ -f "state/stop_bootstrap" ]]; then
       log_warn "[BOOTSTRAP] Stop marker detected. Halting further phase execution."
       break
     fi
-    
     if phase_already_run "$PHASE_NAME"; then
       log_info "[BOOTSTRAP] Skipping already completed phase: $PHASE_NAME"
       continue
     fi
-    
     PHASE_PATH="$PHASES_DIR/$PHASE_NAME/run.sh"
     log_info "[BOOTSTRAP] Starting phase: $PHASE_NAME"
-
     if [[ ! -x "$PHASE_PATH" ]]; then
       log_error "[BOOTSTRAP] Phase script not found or not executable: $PHASE_PATH"
       BOOTSTRAP_SUCCESS=0
       break
     fi
-
     if bash "$PHASE_PATH"; then
       mark_phase_as_run "$PHASE_NAME"
     else
@@ -79,7 +93,6 @@ main() {
   done
 
   echo
-
 
   if [[ $BOOTSTRAP_SUCCESS -eq 1 ]]; then
     log_info "[CLEANUP] Running log rotation for logs directory..."

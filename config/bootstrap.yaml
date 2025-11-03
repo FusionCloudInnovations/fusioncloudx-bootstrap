@@ -1,12 +1,8 @@
-# FusionCloudX Bootstrap main configuration (YAML)
-# This file contains all non-secret config for the application.
-# Edit as needed for your environment.
-
 wsl:
   distro_name: Ubuntu
   custom_distro_name: Ubuntu-FCX
   ephemeral_mode: true
-  clean_run: true
+  clean_run: false
 
 git:
   user_name: Your Name

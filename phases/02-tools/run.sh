@@ -5,7 +5,6 @@ source modules/logging.sh
 source modules/notify.sh
 source modules/state.sh
 source modules/1password.sh
-source modules/bootstrap_env.sh
 
 log_phase "[TOOLS]" "start" "🔧" "Beginning essential tools installation..."
 
