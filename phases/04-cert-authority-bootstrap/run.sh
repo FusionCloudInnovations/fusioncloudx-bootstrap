@@ -140,13 +140,13 @@ else
     log_success "[CERT] File permissions set successfully."
 
     # FIXME: Metadata fields are not updating correctly in 1Password CLI v2. Hard code for now.
-    COMMON_METADATA=(
-        "Metadata.Subject CN=$SUBJ"
-        "Metadata.SAN DNS=$SAN_DNS"
-        "Metadata.SAN IP=$SAN_IP"
-        "Metadata.Server Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"
-        "Metadata.CA Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"
-    )
+    # COMMON_METADATA=(
+    #     "Metadata.Subject CN=$SUBJ"
+    #     "Metadata.SAN DNS=$SAN_DNS"
+    #     "Metadata.SAN IP=$SAN_IP"
+    #     "Metadata.Server Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"
+    #     "Metadata.CA Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"
+    # )
 
     log_info "[CERT][1Password] Common metadata prepared for 1Password items. ${COMMON_METADATA[*]}"
 
@@ -154,12 +154,12 @@ else
     if ! op item edit "$CA_ITEM_NAME" --vault "$VAULT_NAME" \
         "Files.root-ca\.pem[file]=$ROOT_CA_CERT" \
         "Files.root-ca-key\.pem[file]=$ROOT_CA_KEY" \
-        # "Metadata.Subject CN=$SUBJ" \
-        # "Metadata.SAN DNS=$SAN_DNS" \
-        # "Metadata.SAN IP=$SAN_IP" \
+        "Metadata.Subject CN=$SUBJ" \
+        "Metadata.SAN DNS=$SAN_DNS" \
+        "Metadata.SAN IP=$SAN_IP" \
         "Metadata.Server Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)" \
-        "Metadata.CA Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)";
-        "${COMMON_METADATA[@]}"; then
+        "Metadata.CA Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"; then
+        # "${COMMON_METADATA[@]}"; then
         
         log_error "[CERT][1Password] Failed to update Root CA item in 1Password."
         exit 1
@@ -171,12 +171,12 @@ else
         "Files.server-cert\.pem[file]=$CERT_PEM" \
         "Files.server-key\.pem[file]=$CERT_KEY" \
         "Files.fullchain\.pem[file]=$FULLCHAIN_PEM" \
-        # "Metadata.Subject CN=$SUBJ" \
-        # "Metadata.SAN DNS=$SAN_DNS" \
-        # "Metadata.SAN IP=$SAN_IP" \
+        "Metadata.Subject CN=$SUBJ" \
+        "Metadata.SAN DNS=$SAN_DNS" \
+        "Metadata.SAN IP=$SAN_IP" \
         "Metadata.Server Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)" \
-        "Metadata.CA Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)";
-        "${COMMON_METADATA[@]}"; then
+        "Metadata.CA Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"; then
+        # "${COMMON_METADATA[@]}"; then
 
         log_error "[CERT][1Password] Failed to update Intermediate CA item in 1Password."
         log_success "[CERT] Server certificate signed successfully: $CERT_PEM"
