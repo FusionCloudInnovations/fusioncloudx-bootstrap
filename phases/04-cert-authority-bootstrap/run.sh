@@ -46,7 +46,7 @@ FULLCHAIN_PEM="$CERTS_DIR/fullchain.pem"
 # Subject and SAN for the Root CA and server certificate
 SUBJ="/C=US/ST=State/L=City/O=FusionCloudX/OU=DevOps/CN=*.fusioncloudx.home"
 SAN_DNS="DNS:fusioncloudx.home,DNS:*.fusioncloudx.home"
-SAN_IP="IP:192.168.40.49,IP:192.168.40.50"
+SAN_IP="IP:192.168.10.1,IP:192.168.40.49,IP:192.168.40.50,IP:192.168.40.137,IP:192.168.40.93"
 
 # Create required directories if they don't exist
 for dir in "$CA_DIR" "$INT_DIR" "$CERTS_DIR" "$PRIVATE_DIR"; do
@@ -55,6 +55,8 @@ for dir in "$CA_DIR" "$INT_DIR" "$CERTS_DIR" "$PRIVATE_DIR"; do
         sudo mkdir -p "$dir"
     fi
 done
+
+# TODO: Consider cert rotation if certs exist and are nearing expiry. or forced rotation via env var.
 
 # Check for existing certificates in 1Password vault
 if CA_JSON=$(op item get "$CA_ITEM_NAME" --vault "$VAULT_NAME" --format json 2>/dev/null); then
@@ -137,31 +139,34 @@ else
     sudo chmod 644 "$ROOT_CA_CERT" "$INT_CA_CERT" "$CERT_PEM" "$FULLCHAIN_PEM" "$ROOT_CA_KEY" "$INT_CA_KEY" "$CERT_KEY"
     log_success "[CERT] File permissions set successfully."
 
-    COMMON_METADA=(
-        "Metadata.Subject CN=$SUBJ"
-        "Metadata.SAN DNS=$SAN_DNS"
-        "Metadata.SAN IP=$SAN_IP"
-        "Metadata.Server Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"
-        "Metadata.CA Cert Expiry=$(date -d "+3650 days" +%Y-%m-%d)"
+    # Prepare common metadata right before using it to ensure variables are expanded
+    METADATA_ARGS=(
+        "Metadata.Subject CN=${SUBJ}"
+        "Metadata.SAN DNS=${SAN_DNS}"
+        "Metadata.SAN IP=${SAN_IP}"
+        "Metadata.Server Cert Expiry=$(date -d '+3650 days' +%Y-%m-%d)"
+        "Metadata.CA Cert Expiry=$(date -d '+3650 days' +%Y-%m-%d)"
     )
+
+    log_info "[CERT][1Password] Common metadata prepared for 1Password items: ${METADATA_ARGS[*]}"
 
     # Store CA and server certs in 1Password
     if ! op item edit "$CA_ITEM_NAME" --vault "$VAULT_NAME" \
-        "Files.root-ca\.pem[file]=$ROOT_CA_CERT" \
-        "Files.root-ca-key\.pem[file]=$ROOT_CA_KEY" \
-        "${COMMON_METADATA[@]}"; then
+        "Files.root-ca\\.pem[file]=$ROOT_CA_CERT" \
+        "Files.root-ca-key\\.pem[file]=$ROOT_CA_KEY" \
+        "${METADATA_ARGS[@]}"; then
         
         log_error "[CERT][1Password] Failed to update Root CA item in 1Password."
         exit 1
     fi
 
     if ! op item edit "$INT_CA_ITEM_NAME" --vault "$VAULT_NAME" \
-        "Files.intermediate-ca\.pem[file]=$INT_CA_CERT" \
-        "Files.intermediate-ca-key\.pem[file]=$INT_CA_KEY" \
-        "Files.server-cert\.pem[file]=$CERT_PEM" \
-        "Files.server-key\.pem[file]=$CERT_KEY" \
-        "Files.fullchain\.pem[file]=$FULLCHAIN_PEM" \
-        "${COMMON_METADATA[@]}"; then
+        "Files.intermediate-ca\\.pem[file]=$INT_CA_CERT" \
+        "Files.intermediate-ca-key\\.pem[file]=$INT_CA_KEY" \
+        "Files.server-cert\\.pem[file]=$CERT_PEM" \
+        "Files.server-key\\.pem[file]=$CERT_KEY" \
+        "Files.fullchain\\.pem[file]=$FULLCHAIN_PEM" \
+        "${METADATA_ARGS[@]}"; then
 
         log_error "[CERT][1Password] Failed to update Intermediate CA item in 1Password."
         log_success "[CERT] Server certificate signed successfully: $CERT_PEM"
@@ -172,5 +177,6 @@ fi
 
 # TODO: Add logic for Intermediate CA, fullchain generation, and distribution to UDM Pro, UNAS Pro, etc.
 # TODO: Export trusted certs to NFS for client installation (Windows/iOS/macOS)
-
+# TODO: Auto import into Windows Trusted Root CA store when we jump back to Windows. Let ansible handle this?
 log_phase "$PHASE_NAME" "complete" "🔑" "$PHASE_DESC"
+

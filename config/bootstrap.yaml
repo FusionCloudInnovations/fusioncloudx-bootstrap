@@ -9,7 +9,7 @@ git:
   user_email: your@email.com
 
 windows_update:
-  enabled: true
+  enabled: false
 
 tools:
   - name: Git

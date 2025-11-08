@@ -1,3 +1,10 @@
+# Find a better way to track state. Maybe DB? But this is meant for
+# Disaster Recovery, I want to keep it slim so a DB doesn't have to
+# be installed since a VM may not be available after total failure
+# since this is the first script that runs to rebuild the entire
+# infrastructure and environments. And maybe txt file is just fine for
+# this application. Notes may fail in this file though.
+
 #!/usr/bin/env bash
 set -euo pipefail
 

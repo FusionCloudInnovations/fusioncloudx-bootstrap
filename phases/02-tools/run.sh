@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# TODO: Should I add upgrade here? Or just ignore it since it is an ephemeral
+# distro just for disaster recovery and the real distro will be deployed to
+# VMs in ProxMox?
+
 source modules/logging.sh
 source modules/notify.sh
 source modules/state.sh
