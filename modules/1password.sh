@@ -1,14 +1,17 @@
 source modules/logging.sh
+source modules/platform.sh
 
 check_op_vault_access() {
     local vault="$1"
     # Quick sanity: is the token present in this shell?
     if [[ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]]; then
-        log_warn "[1Password] OP_SERVICE_ACCOUNT_TOKEN is not set in this shell. Attempting to source /etc/profile.d/fusioncloudx.sh (if present) and retry."
-        if [[ -f /etc/profile.d/fusioncloudx.sh ]]; then
+        local profile_file
+        profile_file="$(get_profile_file)"
+        log_warn "[1Password] OP_SERVICE_ACCOUNT_TOKEN is not set in this shell. Attempting to source $profile_file (if present) and retry."
+        if [[ -f "$profile_file" ]]; then
             # shellcheck disable=SC1090
-            source /etc/profile.d/fusioncloudx.sh || true
-            log_info "[1Password] Sourced /etc/profile.d/fusioncloudx.sh"
+            source "$profile_file" || true
+            log_info "[1Password] Sourced $profile_file"
         fi
     fi
 
