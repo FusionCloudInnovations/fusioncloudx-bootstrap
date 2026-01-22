@@ -217,10 +217,38 @@ get_profile_file() {
 # Certificate Paths
 # ------------------------------------------------------------------------------
 
+# Temp directory for macOS certificate generation (created in script execution directory)
+# This avoids putting items in system-owned directories on macOS
+MACOS_CERT_TEMP_DIR=""
+
+# Initialize or get the macOS certificate temp directory
+get_macos_cert_temp_dir() {
+    if [[ -n "$MACOS_CERT_TEMP_DIR" && -d "$MACOS_CERT_TEMP_DIR" ]]; then
+        echo "$MACOS_CERT_TEMP_DIR"
+        return
+    fi
+
+    # Create temp directory in the current working directory
+    MACOS_CERT_TEMP_DIR="$(pwd)/.fusioncloudx-certs-$(date +%Y%m%d%H%M%S)"
+    mkdir -p "$MACOS_CERT_TEMP_DIR"
+    export MACOS_CERT_TEMP_DIR
+    echo "$MACOS_CERT_TEMP_DIR"
+}
+
+# Clean up macOS certificate temp directory
+cleanup_macos_cert_temp_dir() {
+    if [[ -n "$MACOS_CERT_TEMP_DIR" && -d "$MACOS_CERT_TEMP_DIR" ]]; then
+        rm -rf "$MACOS_CERT_TEMP_DIR"
+        MACOS_CERT_TEMP_DIR=""
+    fi
+}
+
 get_cert_base_path() {
     case "$PLATFORM_OS" in
         darwin)
-            echo "/usr/local/etc/fusioncloudx/certs"
+            # Use temp directory in script execution location for macOS
+            # Certs will be imported to Keychain, so we don't need persistent storage
+            get_macos_cert_temp_dir
             ;;
         linux|wsl)
             echo "/etc/fusioncloudx/certs"
