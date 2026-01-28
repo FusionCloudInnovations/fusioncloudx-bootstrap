@@ -35,6 +35,55 @@ Phases are numbered directories containing `run.sh` scripts executed sequentiall
 
 State tracking prevents re-running completed phases via `state/ran_phases.txt`.
 
+## Bootstrap Scope and Boundaries
+
+### What Bootstrap Does
+
+**Purpose:** Disaster recovery - bootstrap from zero to "Terraform-ready" state
+
+**Scope:** Bare metal resources only
+- Mac Mini M4 Pro workstation (CA certificate trust)
+- Proxmox hosts (echo, zero) - server certificates for HTTPS API
+
+**End Goal:** Terraform and Ansible can successfully connect to infrastructure
+
+**Bootstrap completes when:**
+- ✅ Workstation can access Proxmox web UI with secure padlock
+- ✅ Terraform provider can connect to Proxmox HTTPS API
+- ✅ SSH keys configured for Proxmox and future VMs
+- ✅ PKI established and certificates stored in 1Password
+
+### What Bootstrap Does NOT Do
+
+**Out of Scope:** Operational infrastructure management
+
+Bootstrap does **NOT** handle:
+- ❌ **VMs** - Provisioned by `FusionCloudX Infrastructure` Terraform
+- ❌ **VM Configuration** - Managed by `FusionCloudX Infrastructure` Ansible
+- ❌ **Network Devices** - Optional, managed by Infrastructure optional playbooks
+- ❌ **Ongoing Operations** - Managed by Infrastructure Control Plane (Semaphore UI)
+
+### Repository Integration
+
+**This Repository (fusioncloudx-bootstrap):**
+- Phase 04: Generate PKI, store certificates in 1Password
+- Phase 13: Deploy certificates to bare metal (Mac Mini + Proxmox)
+- One-time execution during disaster recovery
+
+**Infrastructure Repository (FusionCloudX Infrastructure):**
+- Terraform: Provision VMs (semaphore-ui, gitlab, postgresql)
+- Ansible: Configure VMs, deploy certificates to VMs
+- Control Plane: Semaphore UI orchestrates ongoing operations
+- Optional: Deploy certificates to network devices
+
+**Decision Tree: Should this be in Bootstrap?**
+- Is it bare metal? → Bootstrap
+- Is it required for Terraform/Ansible to function? → Bootstrap
+- Is it a VM or service? → Infrastructure
+- Is it optional (printer, network device)? → Infrastructure (optional playbook)
+
+See `config/bootstrap-devices.yaml` for bootstrap-scoped device inventory.
+
 ## Running the Bootstrap
 
 ```bash
