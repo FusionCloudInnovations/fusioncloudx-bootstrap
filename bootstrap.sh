@@ -7,7 +7,7 @@ trap 'PHASE_STATUS=$?; ./phases/99-notify-done/run.sh failure; exit $PHASE_STATU
 # Load logging and other modules
 source modules/logging.sh
 source modules/state.sh
-# Add other modules here if needed
+source modules/platform.sh
 
 # Always run 00-precheck first, before any config/yq logic
 PHASES_DIR="phases"
@@ -20,6 +20,24 @@ else
 fi
 
 
+
+# ─────────────────────────────────────────────────────────────
+# Platform-specific phase filtering
+# ─────────────────────────────────────────────────────────────
+# Returns 0 (true) if phase should run on current platform
+should_run_phase() {
+  local phase="$1"
+  case "$phase" in
+    01-wsl-init)
+      # WSL init only runs on WSL
+      [[ "$PLATFORM_OS" == "wsl" ]]
+      ;;
+    *)
+      # All other phases run on all platforms
+      return 0
+      ;;
+  esac
+}
 
 # Load phase order from env vars if present, else fallback to default (excluding 00-precheck)
 if [[ -n "${PHASES[*]:-}" ]]; then
@@ -71,6 +89,12 @@ main() {
     if [[ -f "state/stop_bootstrap" ]]; then
       log_warn "[BOOTSTRAP] Stop marker detected. Halting further phase execution."
       break
+    fi
+    # Check if phase should run on this platform
+    if ! should_run_phase "$PHASE_NAME"; then
+      log_info "[BOOTSTRAP] Skipping phase $PHASE_NAME (not applicable for $PLATFORM_OS)"
+      mark_phase_as_run "$PHASE_NAME"  # Mark as run so it won't be retried
+      continue
     fi
     if phase_already_run "$PHASE_NAME"; then
       log_info "[BOOTSTRAP] Skipping already completed phase: $PHASE_NAME"
