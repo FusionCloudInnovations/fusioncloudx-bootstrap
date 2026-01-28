@@ -43,14 +43,6 @@ fi
 case "$PLATFORM_OS" in
     darwin)
         log_success "[PRECHECK] Running on macOS"
-        # Check for Rosetta on Apple Silicon if needed
-        if [[ "$PLATFORM_ARCH" == "arm64" ]]; then
-            if /usr/bin/pgrep -q oahd 2>/dev/null; then
-                log_info "[PRECHECK] Rosetta 2 is available"
-            else
-                log_info "[PRECHECK] Rosetta 2 not detected (may not be needed)"
-            fi
-        fi
         ;;
     wsl)
         if grep -qEi "microsoft.*WSL2" /proc/version 2>/dev/null; then

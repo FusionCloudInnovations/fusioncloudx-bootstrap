@@ -1,16 +1,54 @@
+# ─────────────────────────────────────────────────────────────
+# FusionCloudX Bootstrap Configuration
+# ─────────────────────────────────────────────────────────────
+
+# ─────────────────────────────────────────────────────────────
+# WSL Configuration (Windows Subsystem for Linux)
+# ─────────────────────────────────────────────────────────────
 wsl:
   distro_name: Ubuntu
   custom_distro_name: Ubuntu-FCX
   ephemeral_mode: true
   clean_run: true
 
+# ─────────────────────────────────────────────────────────────
+# macOS Configuration
+# ─────────────────────────────────────────────────────────────
+macos:
+  # Install Homebrew if not present
+  homebrew_install: true
+
+# ─────────────────────────────────────────────────────────────
+# Network Configuration
+# ─────────────────────────────────────────────────────────────
+network:
+  # Default gateway IP (empty = auto-detect)
+  gateway: ""
+
+# ─────────────────────────────────────────────────────────────
+# Certificate Configuration
+# ─────────────────────────────────────────────────────────────
+certificates:
+  # Certificate storage paths (platform-specific)
+  root_path_linux: /etc/fusioncloudx/certs
+  root_path_macos: ""  # Empty = temp directory (certs imported to Keychain)
+
+# ─────────────────────────────────────────────────────────────
+# Git Configuration
+# ─────────────────────────────────────────────────────────────
 git:
   user_name: Your Name
   user_email: your@email.com
 
+# ─────────────────────────────────────────────────────────────
+# Windows Update Configuration (Windows only)
+# ─────────────────────────────────────────────────────────────
 windows_update:
   enabled: false
 
+# ─────────────────────────────────────────────────────────────
+# Windows Tools (WinGet packages)
+# ─────────────────────────────────────────────────────────────
 tools:
   - name: Git
     id: Git.Git
