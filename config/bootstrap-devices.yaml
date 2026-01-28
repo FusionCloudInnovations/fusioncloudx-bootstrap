@@ -1,30 +1,51 @@
-# Device Certificate Deployment Configuration
-# Defines devices that need PFX certificate deployment
+# Bootstrap Device Certificate Deployment Configuration
+# SCOPE: Only devices required for Terraform/Ansible to function (bare metal only)
+# VMs and optional devices are managed by Infrastructure repository
 
-devices:
-  # HP OfficeJet Pro 9015e printer
-  - name: "HP OfficeJet Pro 9015e"
-    hostname: "printer"
-    ip: "192.168.40.226"
-    type: "network-printer"
-    pfx_password: ""  # Blank password for printer import
-    onepassword_item: "HP OfficeJet Pro 9015e Certificate"
-    deployment_method: "manual"  # manual web UI import
-    notes: "Import via EWS → Network → Security → Certificates → Import Certificate and Private Key"
+bootstrap_devices:
+  workstation:
+    name: "Mac Mini M4 Pro"
+    type: "macos-workstation"
+    deployment_method: "security-cli"
+    certs_needed:
+      - "root-ca.pem"
+      - "intermediate-ca.pem"
+    onepassword_vault: "FusionCloudX"
+    onepassword_items:
+      root_ca: "FusionCloudX Root CA"
+      intermediate_ca: "FusionCloudX Intermediate CA"
+    notes: "Workstation needs CA trust to access Proxmox web UI without warnings"
 
-  # Future devices (examples - commented out)
-  # - name: "UniFi Dream Machine Pro"
-  #   hostname: "udm-pro"
-  #   ip: "192.168.1.1"
-  #   type: "network-appliance"
-  #   pfx_password: "securepass"
-  #   onepassword_item: "UDM Pro Certificate"
-  #   deployment_method: "manual"
+  proxmox_hosts:
+    - name: "Proxmox Node Echo"
+      hostname: "echo"
+      ip: "192.168.40.49"
+      type: "proxmox-host"
+      deployment_method: "ssh-pvenode"
+      certs_needed:
+        - "server-cert.pem"
+        - "server-key.pem"
+      onepassword_vault: "FusionCloudX"
+      onepassword_item: "FusionCloudX Server Certificate"
+      notes: "Primary Proxmox node - required for Terraform provider HTTPS API access"
 
-  # - name: "UNAS Pro"
-  #   hostname: "nas01"
-  #   ip: "192.168.40.50"
-  #   type: "storage-appliance"
-  #   pfx_password: ""
-  #   onepassword_item: "UNAS Pro Certificate"
-  #   deployment_method: "manual"
+    - name: "Proxmox Node Zero"
+      hostname: "zero"
+      ip: "192.168.40.206"
+      type: "proxmox-host"
+      deployment_method: "ssh-pvenode"
+      certs_needed:
+        - "server-cert.pem"
+        - "server-key.pem"
+      onepassword_vault: "FusionCloudX"
+      onepassword_item: "FusionCloudX Server Certificate"
+      notes: "Secondary Proxmox node - cluster member, also needs HTTPS cert for API"
+
+# REMOVED DEVICES (moved to Infrastructure repository):
+# - HP OfficeJet Pro 9015e (network printer) → ansible/playbooks/optional/deploy-device-certificates.yml
+# - UniFi Dream Machine Pro → ansible/inventory/devices.yaml
+# - UNAS Pro → ansible/inventory/devices.yaml
+# - Raspberry Pi → ansible/inventory/devices.yaml
+#
+# Bootstrap only handles devices required for "Terraform-ready" state.
+# All other devices are managed by FusionCloudX Infrastructure repository.
