@@ -42,3 +42,12 @@ templates/1password/*-filled.json
 
 # Test certificate directories
 .fusioncloudx-certs-*/
+
+# Certificate files (should be stored in 1Password only)
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+*.csr
