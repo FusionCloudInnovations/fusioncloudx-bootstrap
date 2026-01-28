@@ -20,29 +20,31 @@ log_info "[PHASE 13] Platform: $PLATFORM_OS ($PLATFORM_ARCH)"
 # Configuration
 VAULT_NAME="FusionCloudX"
 INT_CA_ITEM_NAME="FusionCloudX Intermediate CA Bundle"
-DEVICES_CONFIG="config/devices.yaml"
+DEVICES_CONFIG="config/bootstrap-devices.yaml"
 
 #==============================================================================
-# Helper: Create default devices.yaml if missing
+# Helper: Validate Bootstrap-Only Device Configuration
 #==============================================================================
-create_default_devices_config() {
-    cat > "$DEVICES_CONFIG" <<'EOF'
-# Device Certificate Deployment Configuration
-# Defines devices that need PFX certificate deployment
+validate_bootstrap_devices() {
+    local config_file="$1"
 
-devices:
-  # HP OfficeJet Pro 9015e printer
-  - name: "HP OfficeJet Pro 9015e"
-    hostname: "printer"
-    ip: "192.168.40.226"
-    type: "network-printer"
-    pfx_password: ""  # Blank password for printer import
-    onepassword_item: "HP OfficeJet Pro 9015e Certificate"
-    deployment_method: "manual"
-    notes: "Import via EWS → Network → Security → Certificates → Import Certificate and Private Key"
-EOF
+    # Check for old 'devices' key (should now be 'bootstrap_devices')
+    if yq eval 'has("devices")' "$config_file" | grep -q "true"; then
+        log_error "[PHASE 13] Configuration uses deprecated 'devices' key"
+        log_error "Please update to use 'bootstrap_devices' structure"
+        log_error "See config/bootstrap-devices.yaml for correct format"
+        return 1
+    fi
 
-    log_info "[PHASE 13] Created default device configuration: $DEVICES_CONFIG"
+    # Ensure bootstrap_devices key exists
+    if ! yq eval 'has("bootstrap_devices")' "$config_file" | grep -q "true"; then
+        log_error "[PHASE 13] Configuration missing 'bootstrap_devices' key"
+        log_error "Expected structure: bootstrap_devices.workstation and bootstrap_devices.proxmox_hosts"
+        return 1
+    fi
+
+    log_success "[PHASE 13] Device configuration validated (bootstrap-only scope)"
+    return 0
 }
 
 #==============================================================================
@@ -76,9 +78,16 @@ check_op_vault_access "$VAULT_NAME"
 
 # Check device configuration exists
 if [[ ! -f "$DEVICES_CONFIG" ]]; then
-    log_warn "[PHASE 13] Device configuration not found: $DEVICES_CONFIG"
-    log_warn "Creating default configuration with HP printer only"
-    create_default_devices_config
+    log_error "[PHASE 13] Device configuration not found: $DEVICES_CONFIG"
+    log_error "Expected: config/bootstrap-devices.yaml"
+    log_error "This file should have been created during repository setup"
+    exit 1
+fi
+
+# Validate bootstrap-only device structure
+if ! validate_bootstrap_devices "$DEVICES_CONFIG"; then
+    log_error "[PHASE 13] Device configuration validation failed"
+    exit 1
 fi
 
 log_success "[PHASE 13] Prerequisites validated"
@@ -86,19 +95,19 @@ log_success "[PHASE 13] Prerequisites validated"
 #==============================================================================
 # 2. Load Device Configuration
 #==============================================================================
-log_info "[PHASE 13] Loading device configuration from $DEVICES_CONFIG..."
+log_info "[PHASE 13] Loading bootstrap device configuration from $DEVICES_CONFIG..."
 
-# Count devices using yq
-DEVICE_COUNT=$(yq eval '.devices | length' "$DEVICES_CONFIG")
+# Count Proxmox hosts (workstation + proxmox_hosts array)
+PROXMOX_COUNT=$(yq eval '.bootstrap_devices.proxmox_hosts | length' "$DEVICES_CONFIG")
+TOTAL_DEVICES=$((1 + PROXMOX_COUNT))  # 1 workstation + N proxmox hosts
 
-if [[ "$DEVICE_COUNT" -eq 0 ]]; then
-    log_warn "[PHASE 13] No devices configured in $DEVICES_CONFIG"
-    log_info "[PHASE 13] Skipping certificate conversion (no target devices)"
-    mark_phase_as_run "$PHASE_NAME"
-    exit 0
+if [[ "$PROXMOX_COUNT" -eq 0 ]]; then
+    log_warn "[PHASE 13] No Proxmox hosts configured (Terraform won't be able to connect)"
 fi
 
-log_info "[PHASE 13] Found $DEVICE_COUNT device(s) configured"
+log_info "[PHASE 13] Found $TOTAL_DEVICES bootstrap device(s):"
+log_info "[PHASE 13]   - 1 workstation (Mac Mini M4 Pro)"
+log_info "[PHASE 13]   - $PROXMOX_COUNT Proxmox host(s)"
 
 #==============================================================================
 # 3. Create Temporary Working Directory
