@@ -175,7 +175,7 @@ rm -rf ~/.op 2>/dev/null || true
 unset OP_ACCOUNT 2>/dev/null || true  # sometimes exists and interferes
 
 # Test 1Password connection
-check_op_vault_access "Services"
+check_op_vault_access "FusionCloudX"
 
 log_success "[TOOLS] All essential tools are ready."
 log_phase "02-tools" "complete" "🔧" "Essential tools installation completed."

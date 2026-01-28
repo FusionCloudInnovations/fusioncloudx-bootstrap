@@ -1,0 +1,30 @@
+# Device Certificate Deployment Configuration
+# Defines devices that need PFX certificate deployment
+
+devices:
+  # HP OfficeJet Pro 9015e printer
+  - name: "HP OfficeJet Pro 9015e"
+    hostname: "printer"
+    ip: "192.168.40.226"
+    type: "network-printer"
+    pfx_password: ""  # Blank password for printer import
+    onepassword_item: "HP OfficeJet Pro 9015e Certificate"
+    deployment_method: "manual"  # manual web UI import
+    notes: "Import via EWS → Network → Security → Certificates → Import Certificate and Private Key"
+
+  # Future devices (examples - commented out)
+  # - name: "UniFi Dream Machine Pro"
+  #   hostname: "udm-pro"
+  #   ip: "192.168.1.1"
+  #   type: "network-appliance"
+  #   pfx_password: "securepass"
+  #   onepassword_item: "UDM Pro Certificate"
+  #   deployment_method: "manual"
+
+  # - name: "UNAS Pro"
+  #   hostname: "nas01"
+  #   ip: "192.168.40.50"
+  #   type: "storage-appliance"
+  #   pfx_password: ""
+  #   onepassword_item: "UNAS Pro Certificate"
+  #   deployment_method: "manual"

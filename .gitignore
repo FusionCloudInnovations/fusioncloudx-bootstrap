@@ -37,3 +37,8 @@ state/*
 # They are not meant to be committed as they contain sensitive information.
 # 1Password Item Templates
 templates/1password/*-filled.json
+# macOS files
+.DS_Store
+
+# Test certificate directories
+.fusioncloudx-certs-*/

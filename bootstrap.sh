@@ -11,13 +11,13 @@ source modules/platform.sh
 
 # Always run 00-precheck first, before any config/yq logic
 PHASES_DIR="phases"
-if [[ -x "$PHASES_DIR/00-precheck/run.sh" ]]; then
-  bash "$PHASES_DIR/00-precheck/run.sh"
-  source modules/bootstrap_env.sh
-else
-  echo "[BOOTSTRAP] 00-precheck phase script not found or not executable: $PHASES_DIR/00-precheck/run.sh" >&2
-  exit 1
-fi
+# if [[ -x "$PHASES_DIR/00-precheck/run.sh" ]]; then
+#   bash "$PHASES_DIR/00-precheck/run.sh"
+#   source modules/bootstrap_env.sh
+# else
+#   echo "[BOOTSTRAP] 00-precheck phase script not found or not executable: $PHASES_DIR/00-precheck/run.sh" >&2
+#   exit 1
+# fi
 
 
 
@@ -47,9 +47,9 @@ if [[ -n "${PHASES[*]:-}" ]]; then
   PHASE_ORDER=( "${PHASE_ORDER[@]//00-precheck}" )
 else
   PHASE_ORDER=(
-    "01-wsl-init"
-    "02-tools"
-    "03-network-checks"
+    # "01-wsl-init"
+    # "02-tools"
+    # "03-network-checks"
     "04-cert-authority-bootstrap"
     # "05-ssh-key-bootstrap"
     # "06-image-restore"
@@ -79,11 +79,11 @@ main() {
   echo
 
 
-  if [[ "${WSL_CLEAN_RUN,,}" == "true" ]]; then
-    log_info "[STATE] Clean run mode enabled. Removing previous phase history..."
-    rm -f "$STATE_FILE"
-    log_success "[STATE] Previous state cleared for clean run."
-  fi
+  # if [[ "${WSL_CLEAN_RUN,,}" == "true" ]]; then
+  #   log_info "[STATE] Clean run mode enabled. Removing previous phase history..."
+  #   rm -f "$STATE_FILE"
+  #   log_success "[STATE] Previous state cleared for clean run."
+  # fi
 
   for PHASE_NAME in "${PHASE_ORDER[@]}"; do
     if [[ -f "state/stop_bootstrap" ]]; then
