@@ -2,12 +2,13 @@
 set -euo pipefail
 
 #==============================================================================
-# Phase 13: Import Certificates on Clients
-# Purpose: Convert Phase 04 server certificates to PFX and store in 1Password
+# Phase 13: Bootstrap Certificate Deployment
+# Purpose: Deploy certificates to bare metal (Mac Mini + Proxmox hosts)
+# Scope: Only devices required for Terraform/Ansible to function
 #==============================================================================
 
 PHASE_NAME="13-import-certs-on-clients"
-PHASE_DESC="Convert server certificates to PFX for device deployment"
+PHASE_DESC="Deploy certificates to bootstrap-critical devices"
 
 source modules/logging.sh
 source modules/platform.sh
@@ -19,45 +20,194 @@ log_info "[PHASE 13] Platform: $PLATFORM_OS ($PLATFORM_ARCH)"
 
 # Configuration
 VAULT_NAME="FusionCloudX"
-INT_CA_ITEM_NAME="FusionCloudX Intermediate CA Bundle"
-DEVICES_CONFIG="config/devices.yaml"
+DEVICES_CONFIG="config/bootstrap-devices.yaml"
 
 #==============================================================================
-# Helper: Create default devices.yaml if missing
+# Helper Functions
 #==============================================================================
-create_default_devices_config() {
-    cat > "$DEVICES_CONFIG" <<'EOF'
-# Device Certificate Deployment Configuration
-# Defines devices that need PFX certificate deployment
 
-devices:
-  # HP OfficeJet Pro 9015e printer
-  - name: "HP OfficeJet Pro 9015e"
-    hostname: "printer"
-    ip: "192.168.40.226"
-    type: "network-printer"
-    pfx_password: ""  # Blank password for printer import
-    onepassword_item: "HP OfficeJet Pro 9015e Certificate"
-    deployment_method: "manual"
-    notes: "Import via EWS → Network → Security → Certificates → Import Certificate and Private Key"
-EOF
+# Deploy CA certificates to macOS workstation
+deploy_ca_to_macos_workstation() {
+    log_info "[PHASE 13] Deploying CA certificates to Mac Mini workstation..."
 
-    log_info "[PHASE 13] Created default device configuration: $DEVICES_CONFIG"
+    # Create temporary working directory
+    local work_dir
+    work_dir=$(mktemp -d -t fusioncloudx-ca-XXXXXX)
+    trap "rm -rf '$work_dir'" RETURN
+
+    # Get 1Password item names from config
+    local root_ca_item
+    local int_ca_item
+    root_ca_item=$(yq eval '.bootstrap_devices.workstation.onepassword_items.root_ca' "$DEVICES_CONFIG")
+    int_ca_item=$(yq eval '.bootstrap_devices.workstation.onepassword_items.intermediate_ca' "$DEVICES_CONFIG")
+
+    # Download Root CA from 1Password
+    log_info "[PHASE 13] Retrieving Root CA from 1Password..."
+    if ! op document get "root-ca.pem" \
+        --vault "$VAULT_NAME" \
+        --output "$work_dir/root-ca.pem" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to retrieve root-ca.pem from 1Password"
+        log_error "Ensure Phase 04 (cert-authority-bootstrap) completed successfully"
+        return 1
+    fi
+
+    # Download Intermediate CA from 1Password
+    log_info "[PHASE 13] Retrieving Intermediate CA from 1Password..."
+    if ! op document get "intermediate-ca.pem" \
+        --vault "$VAULT_NAME" \
+        --output "$work_dir/intermediate-ca.pem" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to retrieve intermediate-ca.pem from 1Password"
+        return 1
+    fi
+
+    # Import Root CA to macOS System Keychain
+    log_info "[PHASE 13] Importing Root CA to System Keychain..."
+    if ! sudo security add-trusted-cert \
+        -d \
+        -r trustRoot \
+        -k /Library/Keychains/System.keychain \
+        "$work_dir/root-ca.pem" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to import Root CA to System Keychain"
+        log_error "This may require administrator privileges"
+        return 1
+    fi
+
+    # Import Intermediate CA to macOS System Keychain
+    log_info "[PHASE 13] Importing Intermediate CA to System Keychain..."
+    if ! sudo security add-trusted-cert \
+        -d \
+        -r trustAsRoot \
+        -k /Library/Keychains/System.keychain \
+        "$work_dir/intermediate-ca.pem" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to import Intermediate CA to System Keychain"
+        return 1
+    fi
+
+    log_success "[PHASE 13] ✓ CA certificates deployed to Mac Mini workstation"
+    return 0
 }
+
+# Deploy server certificate to Proxmox host via SSH
+deploy_cert_to_proxmox_host() {
+    local host_name="$1"
+    local host_ip="$2"
+    local ssh_user="$3"
+
+    log_info "[PHASE 13] Deploying server certificate to $host_name ($host_ip)..."
+
+    # Create temporary working directory
+    local work_dir
+    work_dir=$(mktemp -d -t fusioncloudx-proxmox-XXXXXX)
+    trap "rm -rf '$work_dir'" RETURN
+
+    # Download server certificate from 1Password
+    log_info "[PHASE 13] Retrieving server certificate from 1Password..."
+    if ! op document get "server-cert.pem" \
+        --vault "$VAULT_NAME" \
+        --output "$work_dir/server-cert.pem" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to retrieve server-cert.pem from 1Password"
+        return 1
+    fi
+
+    # Download server private key from 1Password
+    log_info "[PHASE 13] Retrieving server private key from 1Password..."
+    if ! op document get "server-key.pem" \
+        --vault "$VAULT_NAME" \
+        --output "$work_dir/server-key.pem" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to retrieve server-key.pem from 1Password"
+        return 1
+    fi
+
+    # Test SSH connectivity
+    log_info "[PHASE 13] Testing SSH connectivity to $host_name..."
+    if ! ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no \
+        "$ssh_user@$host_ip" "echo 'SSH connection successful'" >/dev/null 2>&1; then
+        log_error "[PHASE 13] Cannot connect to $host_name via SSH"
+        log_error "Ensure SSH keys are configured and $host_ip is reachable"
+        return 1
+    fi
+
+    # Copy certificate files to Proxmox host
+    log_info "[PHASE 13] Copying certificate files to $host_name..."
+    if ! scp -q -o StrictHostKeyChecking=no \
+        "$work_dir/server-cert.pem" \
+        "$work_dir/server-key.pem" \
+        "$ssh_user@$host_ip:/tmp/" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to copy certificate files to $host_name"
+        return 1
+    fi
+
+    # Apply certificates using pvenode command
+    log_info "[PHASE 13] Applying certificates on $host_name..."
+    if ! ssh -o StrictHostKeyChecking=no "$ssh_user@$host_ip" \
+        "pvenode cert set /tmp/server-cert.pem /tmp/server-key.pem" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to set certificates on $host_name"
+        return 1
+    fi
+
+    # Restart pveproxy service to load new certificates
+    log_info "[PHASE 13] Restarting pveproxy service on $host_name..."
+    if ! ssh -o StrictHostKeyChecking=no "$ssh_user@$host_ip" \
+        "systemctl restart pveproxy" 2>/dev/null; then
+        log_error "[PHASE 13] Failed to restart pveproxy on $host_name"
+        return 1
+    fi
+
+    # Clean up temporary files on remote host
+    ssh -o StrictHostKeyChecking=no "$ssh_user@$host_ip" \
+        "rm -f /tmp/server-cert.pem /tmp/server-key.pem" 2>/dev/null || true
+
+    log_success "[PHASE 13] ✓ Server certificate deployed to $host_name"
+    return 0
+}
+
+# Verify deployment
+verify_bootstrap_deployment() {
+    log_info "[PHASE 13] Verifying certificate deployment..."
+
+    # Verify Mac Mini keychain
+    if [[ "$PLATFORM_OS" == "macos" ]]; then
+        log_info "[PHASE 13] Checking System Keychain for CA certificates..."
+        if security find-certificate -c "FusionCloudX" \
+            /Library/Keychains/System.keychain >/dev/null 2>&1; then
+            log_success "[PHASE 13] ✓ CA certificates found in System Keychain"
+        else
+            log_warn "[PHASE 13] ⚠ CA certificates not found in System Keychain"
+        fi
+    fi
+
+    # Verify Proxmox hosts HTTPS access
+    local proxmox_count
+    proxmox_count=$(yq eval '.bootstrap_devices.proxmox_hosts | length' "$DEVICES_CONFIG")
+
+    for (( i=0; i<proxmox_count; i++ )); do
+        local host_name
+        local host_ip
+        host_name=$(yq eval ".bootstrap_devices.proxmox_hosts[$i].name" "$DEVICES_CONFIG")
+        host_ip=$(yq eval ".bootstrap_devices.proxmox_hosts[$i].ip" "$DEVICES_CONFIG")
+
+        log_info "[PHASE 13] Verifying HTTPS access to $host_name..."
+        if curl -s -o /dev/null -w "%{http_code}" --max-time 5 \
+            "https://$host_ip:8006" | grep -q "200\|401\|302"; then
+            log_success "[PHASE 13] ✓ $host_name HTTPS accessible"
+        else
+            log_warn "[PHASE 13] ⚠ $host_name HTTPS verification failed (may need time to restart)"
+        fi
+    done
+
+    log_success "[PHASE 13] Verification complete"
+}
+
+#==============================================================================
+# Main Execution
+#==============================================================================
 
 #==============================================================================
 # 1. Validate Prerequisites
 #==============================================================================
 log_info "[PHASE 13] Validating prerequisites..."
 
-# Check OpenSSL
-if ! command -v openssl &> /dev/null; then
-    log_error "[PHASE 13] OpenSSL not found - required for PFX conversion"
-    log_error "Install with: brew install openssl (macOS) or apt install openssl (Linux)"
-    exit 1
-fi
-
-# Check yq (installed by Phase 00-precheck)
+# Check yq for YAML parsing
 if ! command -v yq &> /dev/null; then
     log_error "[PHASE 13] yq not found - required for YAML parsing"
     log_error "Ensure Phase 00-precheck has run successfully"
@@ -74,182 +224,141 @@ fi
 # Check 1Password authentication
 check_op_vault_access "$VAULT_NAME"
 
-# Check device configuration exists
+# Check bootstrap devices configuration
 if [[ ! -f "$DEVICES_CONFIG" ]]; then
-    log_warn "[PHASE 13] Device configuration not found: $DEVICES_CONFIG"
-    log_warn "Creating default configuration with HP printer only"
-    create_default_devices_config
+    log_error "[PHASE 13] Bootstrap device configuration not found: $DEVICES_CONFIG"
+    log_error "Expected: config/bootstrap-devices.yaml"
+    exit 1
+fi
+
+# Validate bootstrap_devices structure
+if ! yq eval 'has("bootstrap_devices")' "$DEVICES_CONFIG" | grep -q "true"; then
+    log_error "[PHASE 13] Configuration missing 'bootstrap_devices' key"
+    log_error "Expected structure: bootstrap_devices.workstation and bootstrap_devices.proxmox_hosts"
+    exit 1
+fi
+
+# Platform-specific checks
+if [[ "$PLATFORM_OS" == "macos" ]]; then
+    # Check for security command (macOS keychain management)
+    if ! command -v security &> /dev/null; then
+        log_error "[PHASE 13] security command not found (required for macOS keychain)"
+        exit 1
+    fi
+else
+    log_warn "[PHASE 13] Not running on macOS - skipping workstation CA deployment"
+fi
+
+# Check for SSH (required for Proxmox deployment)
+if ! command -v ssh &> /dev/null; then
+    log_error "[PHASE 13] ssh not found - required for Proxmox deployment"
+    exit 1
+fi
+
+if ! command -v scp &> /dev/null; then
+    log_error "[PHASE 13] scp not found - required for Proxmox deployment"
+    exit 1
 fi
 
 log_success "[PHASE 13] Prerequisites validated"
 
 #==============================================================================
-# 2. Load Device Configuration
+# 2. Load Bootstrap Device Configuration
 #==============================================================================
-log_info "[PHASE 13] Loading device configuration from $DEVICES_CONFIG..."
+log_info "[PHASE 13] Loading bootstrap device configuration..."
 
-# Count devices using yq
-DEVICE_COUNT=$(yq eval '.devices | length' "$DEVICES_CONFIG")
+PROXMOX_COUNT=$(yq eval '.bootstrap_devices.proxmox_hosts | length' "$DEVICES_CONFIG")
+TOTAL_DEVICES=$((1 + PROXMOX_COUNT))  # 1 workstation + N proxmox hosts
 
-if [[ "$DEVICE_COUNT" -eq 0 ]]; then
-    log_warn "[PHASE 13] No devices configured in $DEVICES_CONFIG"
-    log_info "[PHASE 13] Skipping certificate conversion (no target devices)"
-    mark_phase_as_run "$PHASE_NAME"
-    exit 0
+log_info "[PHASE 13] Found $TOTAL_DEVICES bootstrap device(s):"
+log_info "[PHASE 13]   - 1 workstation (Mac Mini M4 Pro)"
+log_info "[PHASE 13]   - $PROXMOX_COUNT Proxmox host(s)"
+
+if [[ "$PROXMOX_COUNT" -eq 0 ]]; then
+    log_warn "[PHASE 13] No Proxmox hosts configured"
+    log_warn "Terraform will not be able to connect to Proxmox API"
 fi
 
-log_info "[PHASE 13] Found $DEVICE_COUNT device(s) configured"
-
 #==============================================================================
-# 3. Create Temporary Working Directory
+# 3. Deploy CA Certificates to Workstation
 #==============================================================================
-WORK_DIR=$(mktemp -d -t fusioncloudx-pfx-XXXXXX)
-trap "rm -rf '$WORK_DIR'" EXIT
-
-log_info "[PHASE 13] Working directory: $WORK_DIR"
-
-#==============================================================================
-# 4. Retrieve Server Certificate from 1Password
-#==============================================================================
-log_info "[PHASE 13] Retrieving server certificate from 1Password..."
-
-# Download server-cert.pem
-if ! op document get "server-cert.pem" \
-    --vault "$VAULT_NAME" \
-    --output "$WORK_DIR/server-cert.pem" 2>/dev/null; then
-    log_error "[PHASE 13] Failed to retrieve server-cert.pem from 1Password"
-    log_error "Ensure Phase 04 (cert-authority-bootstrap) completed successfully"
-    exit 1
-fi
-
-# Download server-key.pem
-if ! op document get "server-key.pem" \
-    --vault "$VAULT_NAME" \
-    --output "$WORK_DIR/server-key.pem" 2>/dev/null; then
-    log_error "[PHASE 13] Failed to retrieve server-key.pem from 1Password"
-    exit 1
-fi
-
-log_success "[PHASE 13] Server certificate retrieved from 1Password"
-
-#==============================================================================
-# 5. Generate PFX for Each Device
-#==============================================================================
-log_info "[PHASE 13] Converting certificates to PFX format..."
-
-# Process each device
-for (( i=0; i<DEVICE_COUNT; i++ )); do
-    # Extract device properties using yq
-    DEVICE_NAME=$(yq eval ".devices[$i].name" "$DEVICES_CONFIG")
-    DEVICE_HOSTNAME=$(yq eval ".devices[$i].hostname" "$DEVICES_CONFIG")
-    DEVICE_IP=$(yq eval ".devices[$i].ip" "$DEVICES_CONFIG")
-    DEVICE_TYPE=$(yq eval ".devices[$i].type" "$DEVICES_CONFIG")
-    DEVICE_PFX_PASSWORD=$(yq eval ".devices[$i].pfx_password" "$DEVICES_CONFIG")
-    DEVICE_OP_ITEM=$(yq eval ".devices[$i].onepassword_item" "$DEVICES_CONFIG")
-    DEVICE_DEPLOYMENT=$(yq eval ".devices[$i].deployment_method" "$DEVICES_CONFIG")
-    DEVICE_NOTES=$(yq eval ".devices[$i].notes" "$DEVICES_CONFIG")
-
-    log_info "[PHASE 13] Processing device: $DEVICE_NAME"
-
-    # Generate PFX filename
-    PFX_FILENAME="${DEVICE_HOSTNAME}.pfx"
-    PFX_PATH="$WORK_DIR/$PFX_FILENAME"
-
-    # Convert PEM to PFX using OpenSSL
-    if ! openssl pkcs12 -export \
-        -in "$WORK_DIR/server-cert.pem" \
-        -inkey "$WORK_DIR/server-key.pem" \
-        -out "$PFX_PATH" \
-        -name "FusionCloudX Server Certificate - $DEVICE_NAME" \
-        -passout "pass:$DEVICE_PFX_PASSWORD" 2>/dev/null; then
-        log_error "[PHASE 13] Failed to convert PFX for $DEVICE_NAME"
+if [[ "$PLATFORM_OS" == "macos" ]]; then
+    if deploy_ca_to_macos_workstation; then
+        log_success "[PHASE 13] Workstation CA deployment successful"
+    else
+        log_error "[PHASE 13] Workstation CA deployment failed"
         exit 1
     fi
+else
+    log_info "[PHASE 13] Skipping workstation deployment (not macOS)"
+fi
 
-    log_success "[PHASE 13] ✓ PFX created: $PFX_FILENAME"
+#==============================================================================
+# 4. Deploy Server Certificates to Proxmox Hosts
+#==============================================================================
+log_info "[PHASE 13] Deploying certificates to Proxmox hosts..."
 
-    # Store PFX in 1Password
-    CURRENT_TIME=$(date '+%Y-%m-%d %H:%M:%S')
+FAILED_HOSTS=()
 
-    # Check if item already exists
-    if op item get "$DEVICE_OP_ITEM" --vault "$VAULT_NAME" --format json &>/dev/null; then
-        # Item exists - delete and recreate for clean state
-        log_info "[PHASE 13] Updating existing 1Password item: $DEVICE_OP_ITEM"
-        op item delete "$DEVICE_OP_ITEM" --vault "$VAULT_NAME" &>/dev/null || true
+for (( i=0; i<PROXMOX_COUNT; i++ )); do
+    HOST_NAME=$(yq eval ".bootstrap_devices.proxmox_hosts[$i].name" "$DEVICES_CONFIG")
+    HOST_HOSTNAME=$(yq eval ".bootstrap_devices.proxmox_hosts[$i].hostname" "$DEVICES_CONFIG")
+    HOST_IP=$(yq eval ".bootstrap_devices.proxmox_hosts[$i].ip" "$DEVICES_CONFIG")
+    HOST_SSH_USER=$(yq eval ".bootstrap_devices.proxmox_hosts[$i].ssh_user" "$DEVICES_CONFIG")
+
+    log_info "[PHASE 13] Processing $HOST_NAME ($HOST_HOSTNAME - $HOST_IP)..."
+
+    if deploy_cert_to_proxmox_host "$HOST_NAME" "$HOST_IP" "$HOST_SSH_USER"; then
+        log_success "[PHASE 13] ✓ $HOST_NAME deployment successful"
     else
-        log_info "[PHASE 13] Creating new 1Password item: $DEVICE_OP_ITEM"
+        log_error "[PHASE 13] ✗ $HOST_NAME deployment failed"
+        FAILED_HOSTS+=("$HOST_NAME")
     fi
 
-    # Create 1Password item with metadata
-    op item create \
-        --category SERVER \
-        --title "$DEVICE_OP_ITEM" \
-        --vault "$VAULT_NAME" \
-        "Device Name=$DEVICE_NAME" \
-        "Device IP=$DEVICE_IP" \
-        "Device Type=$DEVICE_TYPE" \
-        "Hostname=$DEVICE_HOSTNAME" \
-        "Deployment Method=$DEVICE_DEPLOYMENT" \
-        "Updated=$CURRENT_TIME" \
-        "Notes[multiline]=$DEVICE_NOTES" \
-        >/dev/null 2>&1
-
-    # Attach PFX file to item (escape dots in filename)
-    ESCAPED_FILENAME="${PFX_FILENAME//./\\.}"
-    op item edit "$DEVICE_OP_ITEM" \
-        --vault "$VAULT_NAME" \
-        "Files.${ESCAPED_FILENAME}[file]=$PFX_PATH" \
-        >/dev/null 2>&1
-
-    log_success "[PHASE 13] ✓ PFX stored in 1Password: $DEVICE_OP_ITEM"
     echo ""
 done
 
-log_success "[PHASE 13] All device certificates converted and stored in 1Password"
+# Check for failures
+if [[ ${#FAILED_HOSTS[@]} -gt 0 ]]; then
+    log_error "[PHASE 13] Certificate deployment failed for ${#FAILED_HOSTS[@]} host(s):"
+    for host in "${FAILED_HOSTS[@]}"; do
+        log_error "[PHASE 13]   - $host"
+    done
+    exit 1
+fi
+
+log_success "[PHASE 13] All Proxmox hosts deployed successfully"
 
 #==============================================================================
-# 6. Display Deployment Instructions
+# 5. Verify Deployment
+#==============================================================================
+verify_bootstrap_deployment
+
+#==============================================================================
+# 6. Summary
 #==============================================================================
 log_info ""
 log_info "[PHASE 13] =========================================="
-log_info "[PHASE 13] Certificate Deployment Instructions"
+log_info "[PHASE 13] Bootstrap Certificate Deployment Complete"
 log_info "[PHASE 13] =========================================="
-log_info ""
-
-# Display instructions for each device
-for (( i=0; i<DEVICE_COUNT; i++ )); do
-    DEVICE_NAME=$(yq eval ".devices[$i].name" "$DEVICES_CONFIG")
-    DEVICE_HOSTNAME=$(yq eval ".devices[$i].hostname" "$DEVICES_CONFIG")
-    DEVICE_IP=$(yq eval ".devices[$i].ip" "$DEVICES_CONFIG")
-    DEVICE_OP_ITEM=$(yq eval ".devices[$i].onepassword_item" "$DEVICES_CONFIG")
-    DEVICE_NOTES=$(yq eval ".devices[$i].notes" "$DEVICES_CONFIG")
-
-    log_info "[PHASE 13] Device $((i+1)): $DEVICE_NAME"
-    log_info "[PHASE 13]   1. Open 1Password → FusionCloudX vault"
-    log_info "[PHASE 13]   2. Open item: '$DEVICE_OP_ITEM'"
-    log_info "[PHASE 13]   3. Download: ${DEVICE_HOSTNAME}.pfx"
-    log_info "[PHASE 13]   4. Navigate to: https://$DEVICE_IP"
-    log_info "[PHASE 13]   5. $DEVICE_NOTES"
-    log_info "[PHASE 13]   6. Delete downloaded PFX file after import"
-    log_info "[PHASE 13]"
+log_info "[PHASE 13]"
+log_info "[PHASE 13] Deployed to:"
+log_info "[PHASE 13]   ✓ Mac Mini M4 Pro (CA certificates)"
+for (( i=0; i<PROXMOX_COUNT; i++ )); do
+    HOST_NAME=$(yq eval ".bootstrap_devices.proxmox_hosts[$i].name" "$DEVICES_CONFIG")
+    log_info "[PHASE 13]   ✓ $HOST_NAME (server certificate)"
 done
-
-#==============================================================================
-# 7. Summary
-#==============================================================================
-log_info "[PHASE 13] =========================================="
-log_info "[PHASE 13] Phase Summary"
-log_info "[PHASE 13] =========================================="
-log_info "[PHASE 13]   ✓ Retrieved server certificate from 1Password"
-log_info "[PHASE 13]   ✓ Converted $DEVICE_COUNT device(s) to PFX format"
-log_info "[PHASE 13]   ✓ Stored PFX files in 1Password"
 log_info "[PHASE 13]"
 log_info "[PHASE 13] Next Steps:"
-log_info "[PHASE 13]   1. Download PFX from 1Password (device-specific item)"
-log_info "[PHASE 13]   2. Import PFX to device via web UI"
-log_info "[PHASE 13]   3. Verify HTTPS access shows secure padlock"
-log_info "[PHASE 13]   4. Delete downloaded PFX file from local disk"
+log_info "[PHASE 13]   1. Verify Proxmox web UI accessible at:"
+for (( i=0; i<PROXMOX_COUNT; i++ )); do
+    HOST_IP=$(yq eval ".bootstrap_devices.proxmox_hosts[$i].ip" "$DEVICES_CONFIG")
+    log_info "[PHASE 13]      https://$HOST_IP:8006 (should show secure padlock)"
+done
+log_info "[PHASE 13]   2. Proceed to infrastructure deployment with Terraform/Ansible"
+log_info "[PHASE 13]   3. Bootstrap is now complete - Terraform-ready state achieved"
 log_info ""
 
 # Mark phase as complete
 log_phase "$PHASE_NAME" "complete" "🔐" "$PHASE_DESC"
+mark_phase_as_run "$PHASE_NAME"
