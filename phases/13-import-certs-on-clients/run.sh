@@ -166,7 +166,7 @@ verify_bootstrap_deployment() {
     log_info "[PHASE 13] Verifying certificate deployment..."
 
     # Verify Mac Mini keychain
-    if [[ "$PLATFORM_OS" == "macos" ]]; then
+    if is_macos; then
         log_info "[PHASE 13] Checking System Keychain for CA certificates..."
         if security find-certificate -c "FusionCloudX" \
             /Library/Keychains/System.keychain >/dev/null 2>&1; then
@@ -239,7 +239,7 @@ if ! yq eval 'has("bootstrap_devices")' "$DEVICES_CONFIG" | grep -q "true"; then
 fi
 
 # Platform-specific checks
-if [[ "$PLATFORM_OS" == "macos" ]]; then
+if is_macos; then
     # Check for security command (macOS keychain management)
     if ! command -v security &> /dev/null; then
         log_error "[PHASE 13] security command not found (required for macOS keychain)"
@@ -282,7 +282,7 @@ fi
 #==============================================================================
 # 3. Deploy CA Certificates to Workstation
 #==============================================================================
-if [[ "$PLATFORM_OS" == "macos" ]]; then
+if is_macos; then
     if deploy_ca_to_macos_workstation; then
         log_success "[PHASE 13] Workstation CA deployment successful"
     else
