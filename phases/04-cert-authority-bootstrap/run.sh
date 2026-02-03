@@ -54,8 +54,15 @@ CERT_CSR="$CERTS_DIR/cert.csr"
 CERT_PEM="$CERTS_DIR/cert.pem"
 FULLCHAIN_PEM="$CERTS_DIR/fullchain.pem"
 
-# Subject and SAN for the Root CA and server certificate
-SUBJ="/C=US/ST=State/L=City/O=FusionCloudX/OU=DevOps/CN=*.fusioncloudx.home"
+# Subject DN components (shared across certificates)
+SUBJ_BASE="/C=US/ST=State/L=City/O=FusionCloudX/OU=DevOps"
+
+# Distinct CN for each certificate type (PKI best practice)
+ROOT_CA_SUBJ="${SUBJ_BASE}/CN=FusionCloudX Root CA"
+INT_CA_SUBJ="${SUBJ_BASE}/CN=FusionCloudX Intermediate CA"
+SERVER_SUBJ="${SUBJ_BASE}/CN=*.fusioncloudx.home"
+
+# SAN for server certificate (wildcard + specific hostnames)
 SAN_DNS="DNS:fusioncloudx.home,DNS:*.fusioncloudx.home"
 SAN_IP="IP:192.168.10.1,IP:192.168.40.49,IP:192.168.40.50,IP:192.168.40.137,IP:192.168.40.93,IP:192.168.40.206"
 
@@ -192,7 +199,7 @@ else
         log_info "[CERT] Generating Root CA..."
         run_openssl genrsa -aes256 -passout pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")" -out "$ROOT_CA_KEY" 4096
         generate_root_ca_config "$EXTFILE_ROOT_CA"
-        run_openssl req -x509 -sha256 -days 365 -key "$ROOT_CA_KEY" -subj "$SUBJ" -out "$ROOT_CA_CERT" -config "$EXTFILE_ROOT_CA" -passin pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")"
+        run_openssl req -x509 -sha256 -days 365 -key "$ROOT_CA_KEY" -subj "$ROOT_CA_SUBJ" -out "$ROOT_CA_CERT" -config "$EXTFILE_ROOT_CA" -passin pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")"
         log_success "[CERT] Root CA generated successfully with RFC 5280 extensions: $ROOT_CA_CERT"
         sleep 2
     fi
@@ -212,7 +219,7 @@ else
         log_info "[CERT] Generating Intermediate CA..."
         run_openssl genrsa -aes256 -passout pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")" -out "$INT_CA_KEY" 4096
         log_info "[CERT] Generating Intermediate CA CSR..."
-        run_openssl req -new -sha256 -key "$INT_CA_KEY" -subj "$SUBJ" -out "$INT_DIR/intermediate-ca.csr" -passin pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")"
+        run_openssl req -new -sha256 -key "$INT_CA_KEY" -subj "$INT_CA_SUBJ" -out "$INT_DIR/intermediate-ca.csr" -passin pass:"$(op read "op://$VAULT_NAME/$INT_CA_ITEM_NAME/CA passphrase")"
         generate_int_ca_extfile "$EXTFILE_INT_CA"
         log_info "[CERT] Signing Intermediate CA with Root CA..."
         run_openssl x509 -req -sha256 -days 365 -in "$INT_DIR/intermediate-ca.csr" -CA "$ROOT_CA_CERT" -CAkey "$ROOT_CA_KEY" -CAcreateserial -out "$INT_CA_CERT" -extfile "$EXTFILE_INT_CA" -passin pass:"$(op read "op://$VAULT_NAME/$CA_ITEM_NAME/CA passphrase")"
@@ -224,7 +231,7 @@ else
     if [[ ! -f "$CERT_KEY" || ! -f "$CERT_CSR" ]]; then
         log_info "[CERT] Generating server key and CSR..."
         run_openssl genrsa -out "$CERT_KEY" 4096
-        run_openssl req -new -sha256 -key "$CERT_KEY" -subj "$SUBJ" -out "$CERT_CSR"
+        run_openssl req -new -sha256 -key "$CERT_KEY" -subj "$SERVER_SUBJ" -out "$CERT_CSR"
         log_success "[CERT] Server key and CSR generated successfully."
     fi
 
@@ -283,7 +290,9 @@ else
     # Use date_add_days() for cross-platform date arithmetic
     CERT_EXPIRY=$(date_add_days 365 "%Y-%m-%d")
     METADATA_ARGS=(
-        "Metadata.Subject CN=${SUBJ}"
+        "Metadata.Root CA CN=${ROOT_CA_SUBJ}"
+        "Metadata.Intermediate CA CN=${INT_CA_SUBJ}"
+        "Metadata.Server Cert CN=${SERVER_SUBJ}"
         "Metadata.SAN DNS=${SAN_DNS}"
         "Metadata.SAN IP=${SAN_IP}"
         "Metadata.Server Cert Expiry=${CERT_EXPIRY}"
