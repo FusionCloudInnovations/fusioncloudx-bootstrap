@@ -16,7 +16,7 @@ source modules/1password.sh
 source modules/state.sh
 
 log_phase "$PHASE_NAME" "start" "🔐" "$PHASE_DESC"
-log_info "[PHASE 13] Platform: $PLATFORM_OS ($PLATFORM_ARCH)"
+log_debug "[PHASE 13] Platform: $PLATFORM_OS ($PLATFORM_ARCH)"
 
 # Configuration
 VAULT_NAME="FusionCloudX"
@@ -35,15 +35,15 @@ deploy_ca_to_macos_workstation() {
     work_dir=$(mktemp -d -t fusioncloudx-ca-XXXXXX)
     trap "rm -rf '$work_dir'" RETURN
 
-    # Get 1Password item names from config
-    local root_ca_item
-    local int_ca_item
-    root_ca_item=$(yq eval '.bootstrap_devices.workstation.onepassword_items.root_ca' "$DEVICES_CONFIG")
-    int_ca_item=$(yq eval '.bootstrap_devices.workstation.onepassword_items.intermediate_ca' "$DEVICES_CONFIG")
+    # Get certificate filenames from config
+    local root_ca_file
+    local int_ca_file
+    root_ca_file=$(yq eval '.bootstrap_devices.workstation.certs_needed[0]' "$DEVICES_CONFIG")
+    int_ca_file=$(yq eval '.bootstrap_devices.workstation.certs_needed[1]' "$DEVICES_CONFIG")
 
     # Download Root CA from 1Password
     log_info "[PHASE 13] Retrieving Root CA from 1Password..."
-    if ! op document get "root-ca.pem" \
+    if ! op document get "$root_ca_file" \
         --vault "$VAULT_NAME" \
         --output "$work_dir/root-ca.pem" 2>/dev/null; then
         log_error "[PHASE 13] Failed to retrieve root-ca.pem from 1Password"
@@ -53,7 +53,7 @@ deploy_ca_to_macos_workstation() {
 
     # Download Intermediate CA from 1Password
     log_info "[PHASE 13] Retrieving Intermediate CA from 1Password..."
-    if ! op document get "intermediate-ca.pem" \
+    if ! op document get "$int_ca_file" \
         --vault "$VAULT_NAME" \
         --output "$work_dir/intermediate-ca.pem" 2>/dev/null; then
         log_error "[PHASE 13] Failed to retrieve intermediate-ca.pem from 1Password"
@@ -118,6 +118,18 @@ deploy_cert_to_proxmox_host() {
         return 1
     fi
 
+    # Validate certificate format before deployment
+    log_info "[PHASE 13] Validating certificate format..."
+    if ! openssl x509 -in "$work_dir/server-cert.pem" -text -noout >/dev/null 2>&1; then
+        log_error "[PHASE 13] Invalid certificate format in server-cert.pem"
+        return 1
+    fi
+    if ! openssl rsa -in "$work_dir/server-key.pem" -check >/dev/null 2>&1; then
+        log_error "[PHASE 13] Invalid private key format in server-key.pem"
+        return 1
+    fi
+    log_debug "[PHASE 13] Certificate validation passed"
+
     # Test SSH connectivity
     log_info "[PHASE 13] Testing SSH connectivity to $host_name..."
     if ! ssh -o ConnectTimeout=5 -o StrictHostKeyChecking=no \
@@ -153,6 +165,10 @@ deploy_cert_to_proxmox_host() {
         return 1
     fi
 
+    # Wait for pveproxy to fully restart before verification
+    log_debug "[PHASE 13] Waiting for pveproxy to fully restart..."
+    sleep 3
+
     # Clean up temporary files on remote host
     ssh -o StrictHostKeyChecking=no "$ssh_user@$host_ip" \
         "rm -f /tmp/server-cert.pem /tmp/server-key.pem" 2>/dev/null || true
@@ -166,7 +182,7 @@ verify_bootstrap_deployment() {
     log_info "[PHASE 13] Verifying certificate deployment..."
 
     # Verify Mac Mini keychain
-    if [[ "$PLATFORM_OS" == "macos" ]]; then
+    if is_macos; then
         log_info "[PHASE 13] Checking System Keychain for CA certificates..."
         if security find-certificate -c "FusionCloudX" \
             /Library/Keychains/System.keychain >/dev/null 2>&1; then
@@ -239,7 +255,7 @@ if ! yq eval 'has("bootstrap_devices")' "$DEVICES_CONFIG" | grep -q "true"; then
 fi
 
 # Platform-specific checks
-if [[ "$PLATFORM_OS" == "macos" ]]; then
+if is_macos; then
     # Check for security command (macOS keychain management)
     if ! command -v security &> /dev/null; then
         log_error "[PHASE 13] security command not found (required for macOS keychain)"
@@ -282,7 +298,7 @@ fi
 #==============================================================================
 # 3. Deploy CA Certificates to Workstation
 #==============================================================================
-if [[ "$PLATFORM_OS" == "macos" ]]; then
+if is_macos; then
     if deploy_ca_to_macos_workstation; then
         log_success "[PHASE 13] Workstation CA deployment successful"
     else
