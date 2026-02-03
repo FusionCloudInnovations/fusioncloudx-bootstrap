@@ -71,9 +71,10 @@ Bootstrap does **NOT** handle:
 - One-time execution during disaster recovery
 
 **Infrastructure Repository (FusionCloudX Infrastructure):**
-- Terraform: Provision VMs (semaphore-ui, gitlab, postgresql)
-- Ansible: Configure VMs, deploy certificates to VMs
-- Control Plane: Semaphore UI orchestrates ongoing operations
+- Terraform: Provision VMs (gitlab, opconnect) and LXC containers (postgresql)
+- Ansible: Configure VMs/LXC, deploy certificates via `certificates` role
+- Control Plane: GitLab CI/CD orchestrates ongoing operations (replaced Semaphore UI)
+- SSH Keys: Managed via Terraform + 1Password (`ssh-key-loader` role)
 - Optional: Deploy certificates to network devices
 
 **Decision Tree: Should this be in Bootstrap?**
