@@ -73,9 +73,6 @@ bootstrap_devices:
       - "root-ca.pem"
       - "intermediate-ca.pem"
     onepassword_vault: "FusionCloudX"
-    onepassword_items:
-      root_ca: "FusionCloudX Root CA"
-      intermediate_ca: "FusionCloudX Intermediate CA"
 
   proxmox_hosts:
     - name: "Proxmox Node Echo"
@@ -397,6 +394,6 @@ After Phase 13 completes successfully:
 
 ---
 
-**Last Updated:** 2026-01-28
+**Last Updated:** 2026-02-03
 **Bootstrap Version:** 1.0
 **Phase Status:** Complete implementation with Mac Mini and Proxmox support

@@ -11,9 +11,6 @@ bootstrap_devices:
       - "root-ca.pem"
       - "intermediate-ca.pem"
     onepassword_vault: "FusionCloudX"
-    onepassword_items:
-      root_ca: "FusionCloudX Root CA"
-      intermediate_ca: "FusionCloudX Intermediate CA"
     notes: "Workstation needs CA trust to access Proxmox web UI without warnings"
 
   proxmox_hosts:
